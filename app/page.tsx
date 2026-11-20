@@ -11,12 +11,11 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 export default function Home() {
   const pageRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
-  const brandRef = useRef<HTMLAnchorElement>(null);
   const slotRef = useRef<HTMLSpanElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const titleLinkRef = useRef<HTMLAnchorElement>(null);
-  const titleNameRef = useRef<HTMLSpanElement>(null);
+  const titleGroupRef = useRef<HTMLSpanElement>(null);
   const titlePeriodRef = useRef<HTMLSpanElement>(null);
   const dockStripRef = useRef<HTMLDivElement>(null);
 
@@ -24,24 +23,22 @@ export default function Home() {
     () => {
       const page = pageRef.current;
       const header = headerRef.current;
-      const brand = brandRef.current;
       const slot = slotRef.current;
       const hero = heroRef.current;
       const heading = headingRef.current;
       const titleLink = titleLinkRef.current;
-      const titleName = titleNameRef.current;
+      const titleGroup = titleGroupRef.current;
       const titlePeriod = titlePeriodRef.current;
       const dockStrip = dockStripRef.current;
 
       if (
         !page ||
         !header ||
-        !brand ||
         !slot ||
         !hero ||
         !heading ||
         !titleLink ||
-        !titleName ||
+        !titleGroup ||
         !titlePeriod ||
         !dockStrip
       ) {
@@ -52,34 +49,32 @@ export default function Home() {
       let reducedScrollTrigger: ScrollTrigger | undefined;
       let resizeObserver: ResizeObserver | undefined;
       let refreshFrame = 0;
-      let brandIsFixed = false;
       let titleIsFixed = false;
       let disposed = false;
 
       const measure = () => {
-        const headingRect = heading.getBoundingClientRect();
+        const titleRect = titleLink.getBoundingClientRect();
         const slotRect = slot.getBoundingClientRect();
-        const brandRect = brand.getBoundingClientRect();
         const heroRect = hero.getBoundingClientRect();
         const scrollY = window.scrollY;
         const scrollX = window.scrollX;
-        const nameWidth = titleName.offsetWidth;
+        const groupWidth = titleGroup.offsetWidth;
+        const groupHeight = titleGroup.offsetHeight;
         const endScroll = heroRect.top + scrollY + heroRect.height * 0.6;
-        const sourceDocumentTop = headingRect.top + scrollY;
-        const targetViewportTop = brandIsFixed
-          ? slotRect.top
-          : slotRect.top + scrollY;
-        const targetScale = nameWidth > 0 ? slotRect.width / nameWidth : 1;
+        const currentY = Number(gsap.getProperty(titleLink, "y")) || 0;
+        const sourceDocumentTop = titleRect.top - currentY + scrollY;
+        const targetDocumentTop = slotRect.top + scrollY;
+        const targetScale = groupWidth > 0 ? slotRect.width / groupWidth : 1;
+        const centeredTargetTop =
+          targetDocumentTop + (slotRect.height - groupHeight * targetScale) / 2;
 
         return {
-          brandTop: brandIsFixed ? brandRect.top : brandRect.top + scrollY,
-          brandLeft: brandIsFixed ? brandRect.left : brandRect.left + scrollX,
           sourceDocumentTop,
-          sourceDocumentLeft: headingRect.left + scrollX,
-          targetViewportTop,
+          sourceDocumentLeft: titleRect.left + scrollX,
+          targetDocumentTop: centeredTargetTop,
           targetScale,
-          endY: targetViewportTop - (sourceDocumentTop - endScroll),
-          currentY: targetViewportTop - (sourceDocumentTop - scrollY),
+          endY: centeredTargetTop - (sourceDocumentTop - endScroll),
+          currentY: centeredTargetTop - (sourceDocumentTop - scrollY),
         };
       };
 
@@ -91,24 +86,6 @@ export default function Home() {
         titleIsFixed = false;
       };
 
-      const clearBrandPosition = () => {
-        brand.style.position = "";
-        brand.style.top = "";
-        brand.style.left = "";
-        brand.style.zIndex = "";
-        brand.classList.remove("wordmark-docked");
-        brandIsFixed = false;
-      };
-
-      const fixBrand = (metrics: ReturnType<typeof measure>) => {
-        brand.style.position = "fixed";
-        brand.style.top = `${metrics.brandTop}px`;
-        brand.style.left = `${metrics.brandLeft}px`;
-        brand.style.zIndex = "12";
-        brand.classList.add("wordmark-docked");
-        brandIsFixed = true;
-      };
-
       const fixTitle = (metrics: ReturnType<typeof measure>) => {
         titleLink.style.position = "fixed";
         titleLink.style.top = `${metrics.sourceDocumentTop - window.scrollY}px`;
@@ -118,7 +95,6 @@ export default function Home() {
       };
 
       const dockTitle = () => {
-        if (!brandIsFixed) fixBrand(measure());
         if (!titleIsFixed) fixTitle(measure());
       };
 
@@ -128,34 +104,18 @@ export default function Home() {
 
       const undockEverything = () => {
         clearTitlePosition();
-        clearBrandPosition();
         gsap.set(titleLink, { clearProps: "transform" });
         gsap.set(titlePeriod, { opacity: 1 });
         gsap.set(dockStrip, { opacity: 0 });
       };
 
       const refreshMeasurements = () => {
-        const restoreBrand = brandIsFixed;
         const restoreTitle = titleIsFixed;
 
         if (restoreTitle) clearTitlePosition();
-        if (restoreBrand) clearBrandPosition();
         ScrollTrigger.refresh();
 
-        if (restoreBrand) fixBrand(measure());
         if (restoreTitle) fixTitle(measure());
-      };
-
-      const measureHeaderSlot = () => {
-        const styles = window.getComputedStyle(slot);
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-
-        if (context) {
-          context.font = window.getComputedStyle(brand).font;
-          slot.style.width = `${context.measureText("Shakti").width}px`;
-        }
-        slot.style.height = styles.fontSize;
       };
 
       const installAnimations = () => {
@@ -250,7 +210,6 @@ export default function Home() {
         await document.fonts.ready;
         if (disposed) return;
 
-        measureHeaderSlot();
         installAnimations();
         ScrollTrigger.refresh();
 
@@ -289,34 +248,7 @@ export default function Home() {
     <main className="home-screen" ref={pageRef}>
       <div className="dock-strip" aria-hidden="true" ref={dockStripRef} />
       <header className="site-header" ref={headerRef}>
-        <a
-          className="wordmark"
-          href="#top"
-          aria-label="Back to top"
-          ref={brandRef}
-        >
-          <Image
-            src="/art/shakti-icon.png"
-            alt=""
-            width={42}
-            height={42}
-            className="wordmark-icon"
-            priority
-          />
-          <span className="wordmark-slot" aria-hidden="true" ref={slotRef} />
-        </a>
-        <nav className="site-nav" aria-label="Main navigation">
-          <a href="#work">WORK</a>
-          <a href="#about">ABOUT</a>
-          <a href="#contact">CONTACT</a>
-          <button
-            type="button"
-            aria-disabled="true"
-            title="CHAOS Mode will be added later"
-          >
-            CHAOS Mode <span aria-hidden="true">↗</span>
-          </button>
-        </nav>
+        <span className="dock-slot" aria-hidden="true" ref={slotRef} />
         <span className="header-note">PORTFOLIO&nbsp; / &nbsp;2026</span>
       </header>
 
@@ -328,9 +260,22 @@ export default function Home() {
       >
         <div className="hero-copy">
           <h1 id="hero-title" ref={headingRef}>
-            <a className="hero-title-link" href="#top" ref={titleLinkRef}>
-              <span className="hero-title-name" ref={titleNameRef}>
-                Shakti
+            <a
+              className="hero-title-link"
+              href="#top"
+              aria-label="Shakti"
+              ref={titleLinkRef}
+            >
+              <span className="hero-title-primary" ref={titleGroupRef}>
+                <Image
+                  src="/art/shakti-icon.png"
+                  alt=""
+                  width={42}
+                  height={42}
+                  className="hero-title-icon"
+                  priority
+                />
+                <span className="hero-title-name">Shakti</span>
               </span>
               <span
                 className="hero-title-period"
@@ -344,9 +289,6 @@ export default function Home() {
           <p className="hero-intro hero-reveal">
             Somewhere between building and breaking things.
           </p>
-          <a className="hero-link hero-reveal" href="#work">
-            EXPLORE PROJECTS <span aria-hidden="true">↘</span>
-          </a>
         </div>
 
         <figure className="city-art" aria-hidden="true">

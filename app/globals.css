@@ -1,16 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #ebd9c1;
+  --paper: #eddbc2;
   --accent: #92252b;
   --ink: #382a2b;
   --ink-muted: #705b55;
   --page-top-inset: 32px;
-  --brand-icon-size: 42px;
-  --brand-gap: 10px;
-  --dock-strip-height: calc(
-    var(--page-top-inset) + var(--brand-icon-size) + 16px
-  );
+  --dock-strip-height: calc(var(--page-top-inset) + 42px + 16px);
   --font-display: var(--font-display-family);
   --font-body: var(--font-body-family);
   --font-mono: var(--font-mono-family);
@@ -90,7 +86,7 @@ button:focus-visible {
 
 .site-header {
   position: relative;
-  z-index: 5;
+  z-index: 9;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -101,86 +97,14 @@ button:focus-visible {
   letter-spacing: 0.08em;
 }
 
-.wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--brand-gap);
-  text-decoration: none;
-  font-weight: 500;
-  letter-spacing: 0;
-  font-family: var(--font-display), Georgia, serif;
-  font-size: var(--size-h4);
-  font-style: italic;
-}
-
-.wordmark-icon {
-  display: block;
-  flex: 0 0 var(--brand-icon-size);
-  width: var(--brand-icon-size);
-  height: var(--brand-icon-size);
-  object-fit: contain;
-}
-
-.wordmark-slot {
+.dock-slot {
   display: block;
   flex: 0 0 auto;
-  width: 2.8em;
-  height: 1em;
-  font-family: var(--font-display), Georgia, serif;
+  width: 3.8em;
+  height: 1.35em;
   font-size: var(--size-h4);
-  font-style: italic;
-  font-weight: 500;
-  line-height: 1;
 }
 
-.site-nav {
-  position: fixed;
-  z-index: 10;
-  top: 24px;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: clamp(16px, 2.4vw, 36px);
-  transform: translateX(-50%);
-}
-
-.site-nav a,
-.site-nav button {
-  padding: 8px 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  letter-spacing: inherit;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.site-nav a {
-  position: relative;
-}
-.site-nav a::after {
-  position: absolute;
-  right: 0;
-  bottom: 3px;
-  left: 0;
-  height: 1px;
-  background: var(--accent);
-  content: "";
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 180ms ease;
-}
-.site-nav a:hover::after {
-  transform: scaleX(1);
-  transform-origin: left;
-}
-.site-nav button {
-  color: var(--ink-muted);
-}
-.site-nav button span {
-  color: var(--accent);
-}
 .header-note {
   color: var(--ink-muted);
 }
@@ -203,10 +127,8 @@ button:focus-visible {
   width: 100%;
   max-width: 620px;
   align-self: center;
-  padding-left: calc(var(--brand-icon-size) + var(--brand-gap));
 }
 
-.hero-link,
 .hero-foot {
   font-family: var(--font-mono), monospace;
   font-size: var(--size-label);
@@ -227,7 +149,8 @@ h1 {
 }
 
 .hero-title-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   color: inherit;
   line-height: inherit;
   text-decoration: none;
@@ -235,9 +158,28 @@ h1 {
   white-space: nowrap;
 }
 
-.hero-title-name,
+.hero-title-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.16em;
+}
+
+.hero-title-icon {
+  display: block;
+  flex: 0 0 0.54em;
+  width: 0.54em;
+  height: 0.54em;
+  object-fit: contain;
+}
+
+.hero-title-name {
+  display: inline-block;
+}
+
 .hero-title-period {
   display: inline-block;
+  align-self: flex-end;
+  margin-bottom: 0.06em;
 }
 
 .hero-intro {
@@ -273,27 +215,6 @@ h4 {
   font-style: normal;
 }
 
-.hero-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 13px;
-  margin-top: 35px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--accent);
-  color: var(--accent);
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.hero-link span {
-  color: var(--accent);
-  font-size: var(--size-h4);
-  transition: transform 180ms ease;
-}
-.hero-link:hover span {
-  transform: translate(3px, 3px);
-}
-
 .city-art {
   position: relative;
   z-index: 1;
@@ -307,6 +228,38 @@ h4 {
 .hero-art-image {
   object-fit: contain;
   object-position: center;
+  mask-image:
+    linear-gradient(
+      to right,
+      transparent 0,
+      #000 5%,
+      #000 95%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 4%,
+      #000 99.3%,
+      transparent 100%
+    );
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(
+      to right,
+      transparent 0,
+      #000 5%,
+      #000 95%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 4%,
+      #000 99.3%,
+      transparent 100%
+    );
+  -webkit-mask-composite: source-in;
 }
 
 .hero-foot {
@@ -333,38 +286,17 @@ h4 {
   .home-screen {
     padding-inline: clamp(20px, 5vw, 48px);
   }
-  .hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
-  }
-  .header-note {
-    display: none;
-  }
 }
 
 @media (max-width: 680px) {
   .home-screen {
     --page-top-inset: 20px;
-    --dock-strip-height: calc(
-      var(--page-top-inset) + var(--brand-icon-size) + 12px
-    );
+    --dock-strip-height: calc(var(--page-top-inset) + 42px + 12px);
     min-height: 100svh;
     padding: 20px 22px 18px;
   }
   .site-header {
     align-items: flex-start;
-    flex-wrap: wrap;
-  }
-  .site-nav {
-    position: static;
-    justify-content: center;
-    flex-basis: 100%;
-    gap: clamp(10px, 3vw, 18px);
-    width: 100%;
-    transform: none;
-  }
-  .site-nav a,
-  .site-nav button {
-    padding-block: 6px;
   }
   .hero {
     grid-template-columns: minmax(0, 1fr);
@@ -377,9 +309,6 @@ h4 {
     margin: 0;
     padding-top: 6vh;
   }
-  .hero-link {
-    margin-top: 22px;
-  }
   .city-art {
     grid-row: 2;
     width: min(100%, 390px);
@@ -390,20 +319,16 @@ h4 {
     grid-row: 3;
     bottom: auto;
     margin-top: 0;
-    font-size: var(--size-label);
+    gap: 8px;
+    font-size: calc(var(--size-label) * 0.7);
+    letter-spacing: 0.02em;
   }
   .hero-foot > span {
-    max-width: 48%;
+    max-width: none;
+    white-space: nowrap;
   }
-}
-
-@media (max-width: 380px) {
-  .site-nav {
-    gap: 10px;
-  }
-  .site-nav a,
-  .site-nav button {
-    font-size: var(--size-label);
+  .hero-foot a {
+    white-space: nowrap;
   }
 }
 
