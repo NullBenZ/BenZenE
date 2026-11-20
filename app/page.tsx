@@ -249,7 +249,6 @@ export default function Home() {
       <div className="dock-strip" aria-hidden="true" ref={dockStripRef} />
       <header className="site-header" ref={headerRef}>
         <span className="dock-slot" aria-hidden="true" ref={slotRef} />
-        <span className="header-note">PORTFOLIO&nbsp; / &nbsp;2026</span>
       </header>
 
       <section
@@ -304,10 +303,7 @@ export default function Home() {
         </figure>
 
         <div className="hero-foot">
-          <span>LINUX&nbsp; · &nbsp;C/C++&nbsp; · &nbsp;NETWORKS</span>
-          <a href="#work" aria-label="Explore work section, to be added later">
-            SCROLL TO EXPLORE <span aria-hidden="true">↓</span>
-          </a>
+          <span>PORTFOLIO&nbsp; / &nbsp;2026</span>
         </div>
       </section>
     </main>

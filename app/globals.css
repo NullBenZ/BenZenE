@@ -105,10 +105,6 @@ button:focus-visible {
   font-size: var(--size-h4);
 }
 
-.header-note {
-  color: var(--ink-muted);
-}
-
 .hero {
   position: relative;
   display: grid;
@@ -166,9 +162,9 @@ h1 {
 
 .hero-title-icon {
   display: block;
-  flex: 0 0 0.54em;
-  width: 0.54em;
-  height: 0.54em;
+  flex: 0 0 calc(1em + 0.5cm);
+  width: calc(1em + 0.5cm);
+  height: calc(1em + 0.5cm);
   object-fit: contain;
 }
 
@@ -269,17 +265,10 @@ h4 {
   bottom: 15px;
   left: 0;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: center;
   gap: 16px;
   color: var(--ink-muted);
-}
-.hero-foot a {
-  color: var(--ink);
-  text-decoration: none;
-}
-.hero-foot a span {
-  padding-left: 7px;
-  color: var(--accent);
 }
 
 @media (max-width: 900px) {
@@ -323,11 +312,7 @@ h4 {
     font-size: calc(var(--size-label) * 0.7);
     letter-spacing: 0.02em;
   }
-  .hero-foot > span {
-    max-width: none;
-    white-space: nowrap;
-  }
-  .hero-foot a {
+  .hero-foot span {
     white-space: nowrap;
   }
 }
