@@ -7,7 +7,6 @@
   --ink-muted: #705b55;
   --espresso: #26211d;
   --page-top-inset: 32px;
-  --dock-pill-padding: 8px;
   --dock-safe-area: calc(var(--page-top-inset) + 72px);
   --font-display: var(--font-display-family);
   --font-body: var(--font-body-family);
@@ -77,21 +76,6 @@ button:focus-visible {
   padding: var(--page-top-inset) clamp(22px, 5.5vw, 88px) 24px;
 }
 
-.dock-pill {
-  position: fixed;
-  z-index: 12;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 0;
-  padding: var(--dock-pill-padding);
-  border: 1px solid rgb(146 37 43 / 28%);
-  border-radius: 999px;
-  background: var(--paper);
-  opacity: 0;
-  pointer-events: none;
-}
-
 .site-header {
   position: relative;
   z-index: 9;
@@ -156,9 +140,24 @@ h1 {
 }
 
 .hero-title-primary {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   gap: 0.16em;
+}
+
+.hero-title-primary::before {
+  position: absolute;
+  z-index: -1;
+  inset: calc(-1 * var(--dock-inset-y, 0px))
+    calc(-1 * var(--dock-inset-x, 0px));
+  border: var(--dock-border-width, 1px) solid rgb(146 37 43 / 28%);
+  border-radius: 999px;
+  background: var(--paper);
+  content: "";
+  opacity: var(--dock-pill-alpha, 0);
+  pointer-events: none;
 }
 
 .hero-title-icon {
@@ -456,7 +455,6 @@ h4 {
 @media (max-width: 680px) {
   .home-screen {
     --page-top-inset: 20px;
-    --dock-pill-padding: 6px;
     --dock-safe-area: calc(var(--page-top-inset) + 60px);
     min-height: 100svh;
     padding: 20px 22px 18px;

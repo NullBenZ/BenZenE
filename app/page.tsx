@@ -25,7 +25,6 @@ export default function Home() {
   const titleGroupRef = useRef<HTMLSpanElement>(null);
   const titlePeriodRef = useRef<HTMLSpanElement>(null);
   const heroIntroRef = useRef<HTMLParagraphElement>(null);
-  const dockPillRef = useRef<HTMLDivElement>(null);
   const projectTriggerRef = useRef<HTMLButtonElement>(null);
   const projectDialogRef = useRef<HTMLDialogElement>(null);
   const dialogCloseRef = useRef<HTMLButtonElement>(null);
@@ -48,7 +47,6 @@ export default function Home() {
       const titleGroup = titleGroupRef.current;
       const titlePeriod = titlePeriodRef.current;
       const heroIntro = heroIntroRef.current;
-      const dockPill = dockPillRef.current;
 
       if (
         !page ||
@@ -59,8 +57,7 @@ export default function Home() {
         !titleLink ||
         !titleGroup ||
         !titlePeriod ||
-        !heroIntro ||
-        !dockPill
+        !heroIntro
       ) {
         return;
       }
@@ -71,6 +68,7 @@ export default function Home() {
       let resizeObserver: ResizeObserver | undefined;
       let refreshFrame = 0;
       let titleIsFixed = false;
+      let reducedMotionMode = false;
       let copyIsHidden = false;
       let disposed = false;
       let copyOpacityTween: gsap.core.Tween | undefined;
@@ -84,11 +82,14 @@ export default function Home() {
       };
 
       const fixTitle = (metrics: ReturnType<typeof measure>) => {
+        const y = reducedMotionMode
+          ? 0
+          : Number(gsap.getProperty(titleLink, "y")) || 0;
         gsap.set(titleLink, {
+          y,
           scale: metrics.targetScale,
           transformOrigin: "top left",
         });
-        const y = Number(gsap.getProperty(titleLink, "y")) || 0;
         titleLink.style.position = "fixed";
         titleLink.style.top = `${metrics.targetDocumentTop - y}px`;
         titleLink.style.left = `${metrics.targetDocumentLeft}px`;
@@ -103,38 +104,43 @@ export default function Home() {
         const introY = Number(gsap.getProperty(heroIntro, "y")) || 0;
 
         if (wasFixed) clearTitlePosition();
+        titleLink.style.transform = "none";
+        titleLink.style.translate = "none";
+        titleLink.style.rotate = "none";
+        titleLink.style.scale = "none";
         gsap.set(titleLink, { clearProps: "transform" });
         gsap.set(heroIntro, { clearProps: "transform" });
 
         const titleRect = titleLink.getBoundingClientRect();
-        const groupRect = titleGroup.getBoundingClientRect();
         const slotRect = slot.getBoundingClientRect();
         const heroRect = hero.getBoundingClientRect();
         const scrollY = window.scrollY;
         const scrollX = window.scrollX;
         const sourceDocumentTop = titleRect.top + scrollY;
         const targetDocumentLeft = slotRect.left + scrollX;
-        const groupWidth = groupRect.width;
-        const groupHeight = groupRect.height;
+        const groupWidth = titleGroup.offsetWidth;
+        const groupHeight = titleGroup.offsetHeight;
         const endScroll = heroRect.top + scrollY + heroRect.height * 0.6;
         const targetScale = groupWidth > 0 ? slotRect.width / groupWidth : 1;
         const targetDocumentTop =
           slotRect.top +
           scrollY +
           (slotRect.height - groupHeight * targetScale) / 2;
-        const pillPadding =
-          Number.parseFloat(getComputedStyle(dockPill).paddingLeft) || 0;
+        const safeTargetScale = Math.max(targetScale, 0.001);
+        titleGroup.style.setProperty(
+          "--dock-inset-x",
+          `${8 / safeTargetScale}px`,
+        );
+        titleGroup.style.setProperty(
+          "--dock-inset-y",
+          `${6 / safeTargetScale}px`,
+        );
+        titleGroup.style.setProperty(
+          "--dock-border-width",
+          `${1 / safeTargetScale}px`,
+        );
 
-        dockPill.style.left = `${slotRect.left + scrollX - pillPadding}px`;
-        dockPill.style.top = `${slotRect.top + scrollY - pillPadding}px`;
-        dockPill.style.width = `${slotRect.width + pillPadding * 2}px`;
-        dockPill.style.height = `${slotRect.height + pillPadding * 2}px`;
-
-        gsap.set(titleLink, {
-          y,
-          scale,
-          transformOrigin: "top left",
-        });
+        gsap.set(titleLink, { y, scale, transformOrigin: "top left" });
         gsap.set(heroIntro, { y: introY });
 
         if (wasFixed) {
@@ -169,7 +175,7 @@ export default function Home() {
         gsap.set(titlePeriod, { opacity: 1 });
         copyOpacityTween?.kill();
         gsap.set(heroIntro, { opacity: 1, clearProps: "transform" });
-        gsap.set(dockPill, { opacity: 0 });
+        gsap.set(titleGroup, { "--dock-pill-alpha": 0 });
         copyIsHidden = false;
       };
 
@@ -216,6 +222,7 @@ export default function Home() {
         const reduceMotion = window.matchMedia(
           "(prefers-reduced-motion: reduce)",
         ).matches;
+        reducedMotionMode = reduceMotion;
 
         copyIsHidden = false;
         copyCollisionTrigger = ScrollTrigger.create({
@@ -235,14 +242,9 @@ export default function Home() {
             start: "bottom top",
             onEnter: () => {
               const metrics = measure();
-              gsap.set(titleLink, {
-                y: metrics.currentY,
-                scale: metrics.targetScale,
-                transformOrigin: "top left",
-              });
+              fixTitle(metrics);
               gsap.set(titlePeriod, { opacity: 0 });
-              gsap.set(dockPill, { opacity: 1 });
-              dockTitle();
+              gsap.set(titleGroup, { "--dock-pill-alpha": 1 });
             },
             onLeaveBack: undockEverything,
           });
@@ -312,7 +314,11 @@ export default function Home() {
             0,
           )
           .to(titlePeriod, { opacity: 0, duration: 0.42, ease: "none" }, 0.48)
-          .to(dockPill, { opacity: 1, duration: 0.28, ease: "none" }, 0.72);
+          .to(
+            titleGroup,
+            { "--dock-pill-alpha": 1, duration: 0.3, ease: "none" },
+            0.7,
+          );
       };
 
       const onMotionPreferenceChange = () => {
@@ -338,7 +344,6 @@ export default function Home() {
         resizeObserver.observe(header);
         resizeObserver.observe(slot);
         resizeObserver.observe(heading);
-        resizeObserver.observe(titleLink);
         resizeObserver.observe(titleGroup);
         resizeObserver.observe(hero);
         window.addEventListener("resize", onResize);
@@ -460,7 +465,6 @@ export default function Home() {
 
   return (
     <main className="home-screen" ref={pageRef}>
-      <div className="dock-pill" aria-hidden="true" ref={dockPillRef} />
       <header className="site-header" ref={headerRef}>
         <span className="dock-slot" aria-hidden="true" ref={slotRef} />
       </header>
