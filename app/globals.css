@@ -423,6 +423,10 @@ h4 {
   line-height: 1.6;
 }
 
+.folder-float-space {
+  padding-top: 220px;
+}
+
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .project-row:hover .project-image {
     transform: scale(1.05);

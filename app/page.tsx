@@ -3,10 +3,15 @@
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
+
+const FolderFloat = dynamic(() => import("@/components/FolderFloat"), {
+  ssr: false,
+});
 
 type Project = {
   name: string;
@@ -24,8 +29,7 @@ const projects: Project[] = [
   {
     name: "Eidolon",
     url: "https://github.com/nullbenz/eidolon",
-    description:
-      "A safety layer for editing Linux config files. Edit a temporary copy, and Eidolon checks your changes against your real machine and shows a before and after view before anything is applied. Every finding is labeled verified, likely or unknown. Currently supports Hyprland.",
+    description: "A safety layer for editing Linux config files.",
     image: {
       src: "/art/eidolon-cli.png",
       width: 1512,
@@ -45,6 +49,35 @@ export default function Home() {
   const titleGroupRef = useRef<HTMLSpanElement>(null);
   const titlePeriodRef = useRef<HTMLSpanElement>(null);
   const heroIntroRef = useRef<HTMLParagraphElement>(null);
+  const projectsRef = useRef<HTMLElement>(null);
+  const [folderReady, setFolderReady] = useState(false);
+  const [folderTrigger, setFolderTrigger] = useState<"hover" | "click">("click");
+
+  useEffect(() => {
+    const projects = projectsRef.current;
+    if (!projects) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setFolderReady(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+
+    observer.observe(projects);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setFolderTrigger(
+      window.matchMedia("(hover: hover) and (pointer: fine)").matches
+        ? "hover"
+        : "click",
+    );
+  }, []);
 
   useGSAP(
     () => {
@@ -474,6 +507,7 @@ export default function Home() {
         className="editorial-section projects-section section-reveal"
         id="projects"
         aria-labelledby="projects-title"
+        ref={projectsRef}
       >
         <div className="section-heading">
           <h2 id="projects-title">Projects</h2>
@@ -522,6 +556,35 @@ export default function Home() {
                   </a>
                 </div>
                 <p className="project-description">{project.description}</p>
+                <div className="folder-float-space">
+                  {folderReady && (
+                    <FolderFloat
+                      items={[
+                        "Edits a temporary copy first",
+                        "Checks against your real machine",
+                        "Shows a before and after view",
+                        "Verified, likely or unknown labels",
+                        "Nothing applies without your approval",
+                      ]}
+                      label="Eidolon"
+                      sublabel="How it works"
+                      closeOnSelect={false}
+                      physics={true}
+                      drift={0.5}
+                      trigger={folderTrigger}
+                      folderColor="#26211D"
+                      frontColor="#8E2419"
+                      paperColor="#E6D7BE"
+                      itemColor="#26211D"
+                      itemTextColor="#E6D7BE"
+                      labelColor="#E6D7BE"
+                      width={220}
+                      height={160}
+                      radius={14}
+                      spread={240}
+                    />
+                  )}
+                </div>
               </div>
             </article>
           ))}
