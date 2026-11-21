@@ -12,6 +12,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import PetalRain from "../components/PetalRain";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -137,8 +138,8 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
   }, []);
 
   const isNarrowCard = cardSize.width > 0 && cardSize.width < 560;
-  const centerX = isNarrowCard ? cardSize.width / 2 : cardSize.width * 0.78;
-  const centerY = isNarrowCard ? cardSize.height * 0.7 : cardSize.height / 2;
+  const centerX = cardSize.width * (isNarrowCard ? 0.36 : 0.22);
+  const centerY = cardSize.height * 0.58;
   const scale =
     cardSize.width > 0
       ? Math.min(
@@ -293,92 +294,98 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
   } as CSSProperties;
 
   return (
-    <article
-      className="eidolon-card"
-      ref={cardRef}
-      data-flower-open={open ? "" : undefined}
-    >
-      <Image
-        src={project.image.src}
-        alt={project.image.alt}
-        fill
-        sizes="(max-width: 767px) 100vw, 1120px"
-        loading="lazy"
-        className="eidolon-card-image"
-      />
-      <div className="eidolon-card-shade" aria-hidden="true" />
-
-      <div className="eidolon-card-copy">
-        <span className="eidolon-card-index" aria-hidden="true">
-          {String(index + 1).padStart(2, "0")}
-        </span>
-        <div className="eidolon-card-title-line">
-          <h3 className="eidolon-card-title">EIDOLON</h3>
-          <a
-            className="eidolon-card-github"
-            href={project.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Eidolon on GitHub"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              width="28"
-              height="28"
-              fill="currentColor"
-            >
-              <path d="M12 .297a12 12 0 0 0-3.794 23.4c.6.111.82-.261.82-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.467-1.332-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.5 11.5 0 0 1 6.006 0c2.292-1.552 3.298-1.23 3.298-1.23.655 1.652.243 2.873.12 3.176.77.84 1.235 1.91 1.235 3.221 0 4.61-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.216.694.825.576A12.001 12.001 0 0 0 12 .297z" />
-            </svg>
-          </a>
-        </div>
-        <p className="eidolon-card-description">{project.description}</p>
-      </div>
-
-      <div className="eidolon-flower" ref={flowerRef} style={flowerStyle}>
-        <ul
-          className="eidolon-flower-petals"
-          id="eidolon-flower-list"
-          aria-hidden={!open}
-        >
-          {flowerPetals.map((petal, petalIndex) => (
-            <li
-              key={petal.text}
-              className="eidolon-flower-petal"
-              ref={(element) => {
-                petalRefs.current[petalIndex] = element;
-              }}
-              style={
-                {
-                  "--petal-angle": `${petal.angle}deg`,
-                  "--petal-color": petal.color,
-                  "--petal-length": `${petal.length * scale}px`,
-                  "--petal-width": `${petal.width * scale}px`,
-                  "--petal-font": `${Math.max(12, 14 * scale)}px`,
-                } as CSSProperties
-              }
-              onPointerEnter={openOnHover}
-              onPointerLeave={closeAfterHover}
-              onClick={toggleOpen}
-            >
-              <span className="eidolon-flower-petal-shape" aria-hidden="true" />
-              <span className="eidolon-flower-petal-text">{petal.text}</span>
-            </li>
-          ))}
-        </ul>
-        <button
-          className="eidolon-flower-orb"
-          type="button"
-          ref={orbRef}
-          aria-label="Show how Eidolon works"
-          aria-expanded={open}
-          aria-controls="eidolon-flower-list"
-          onPointerEnter={openOnHover}
-          onPointerLeave={closeAfterHover}
-          onClick={toggleOpen}
+    <div className="eidolon-project">
+      <span className="eidolon-project-index" aria-hidden="true">
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <article
+        className="eidolon-card"
+        ref={cardRef}
+        data-flower-open={open ? "" : undefined}
+      >
+        <Image
+          src={project.image.src}
+          alt={project.image.alt}
+          fill
+          sizes="(max-width: 767px) 100vw, 1120px"
+          loading="lazy"
+          className="eidolon-card-image"
         />
-      </div>
-    </article>
+        <div className="eidolon-card-shade" aria-hidden="true" />
+        <PetalRain active={open} />
+
+        <div className="eidolon-card-copy">
+          <div className="eidolon-card-title-line">
+            <h3 className="eidolon-card-title">EIDOLON</h3>
+            <a
+              className="eidolon-card-github"
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Eidolon on GitHub"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                width="28"
+                height="28"
+                fill="currentColor"
+              >
+                <path d="M12 .297a12 12 0 0 0-3.794 23.4c.6.111.82-.261.82-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.467-1.332-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.5 11.5 0 0 1 6.006 0c2.292-1.552 3.298-1.23 3.298-1.23.655 1.652.243 2.873.12 3.176.77.84 1.235 1.91 1.235 3.221 0 4.61-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.216.694.825.576A12.001 12.001 0 0 0 12 .297z" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div className="eidolon-flower" ref={flowerRef} style={flowerStyle}>
+          <ul
+            className="eidolon-flower-petals"
+            id="eidolon-flower-list"
+            aria-hidden={!open}
+          >
+            {flowerPetals.map((petal, petalIndex) => (
+              <li
+                key={petal.text}
+                className="eidolon-flower-petal"
+                ref={(element) => {
+                  petalRefs.current[petalIndex] = element;
+                }}
+                style={
+                  {
+                    "--petal-angle": `${petal.angle}deg`,
+                    "--petal-color": petal.color,
+                    "--petal-length": `${petal.length * scale}px`,
+                    "--petal-width": `${petal.width * scale}px`,
+                    "--petal-font": `${Math.max(12, 14 * scale)}px`,
+                  } as CSSProperties
+                }
+                onPointerEnter={openOnHover}
+                onPointerLeave={closeAfterHover}
+                onClick={toggleOpen}
+              >
+                <span
+                  className="eidolon-flower-petal-shape"
+                  aria-hidden="true"
+                />
+                <span className="eidolon-flower-petal-text">{petal.text}</span>
+              </li>
+            ))}
+          </ul>
+          <button
+            className="eidolon-flower-orb"
+            type="button"
+            ref={orbRef}
+            aria-label="Show how Eidolon works"
+            aria-expanded={open}
+            aria-controls="eidolon-flower-list"
+            onPointerEnter={openOnHover}
+            onPointerLeave={closeAfterHover}
+            onClick={toggleOpen}
+          />
+        </div>
+      </article>
+      <p className="eidolon-card-description">{project.description}</p>
+    </div>
   );
 }
 
