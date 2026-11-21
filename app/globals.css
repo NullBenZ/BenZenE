@@ -324,116 +324,204 @@ h4 {
   margin-left: auto;
 }
 
-.project-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-areas: "image content";
-  align-items: start;
-  gap: 64px;
+.eidolon-card {
+  position: relative;
+  isolation: isolate;
   width: 100%;
-  padding: clamp(32px, 5vw, 64px) 0;
-  border-top: 1px solid rgb(56 42 43 / 35%);
-  border-bottom: 1px solid rgb(56 42 43 / 35%);
-}
-
-.project-row--reverse {
-  grid-template-areas: "content image";
-}
-
-.project-image-frame {
-  grid-area: image;
-  min-width: 0;
-  margin: 0;
+  height: clamp(480px, 52vw, 620px);
   overflow: hidden;
   border: 1px solid var(--espresso);
+  background: #090a0d;
+  color: #e6d7be;
 }
 
-.project-image {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  border: 0;
+.eidolon-card-image {
+  z-index: -2;
+  object-fit: cover;
+  object-position: center;
   transform: scale(1);
   transform-origin: center;
   will-change: transform;
 }
 
-.project-content {
-  grid-area: content;
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
+.eidolon-card-shade {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: rgb(0 0 0 / 22%);
+  pointer-events: none;
 }
 
-.project-index {
-  margin-bottom: 4px;
-  color: var(--accent);
+.eidolon-card-copy {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 48%);
+  padding: clamp(28px, 4.2vw, 52px);
+}
+
+.eidolon-card-index {
+  display: block;
+  margin-bottom: 6px;
+  color: #a63a2b;
   font-family: var(--font-display), Georgia, serif;
   font-size: 56px;
   font-style: italic;
   line-height: 0.95;
 }
 
-.project-name-line {
+.eidolon-card-title-line {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-.project-name {
+.eidolon-card-title {
   margin: 0;
-  color: var(--espresso);
+  color: #e6d7be;
   font-family: var(--font-display), Georgia, serif;
   font-size: clamp(2.25rem, 4vw, 3.25rem);
   font-style: italic;
   line-height: 1.05;
 }
 
-.project-github-link {
+.eidolon-card-github {
   display: inline-flex;
   width: 44px;
   height: 44px;
   flex: 0 0 44px;
   align-items: center;
   justify-content: center;
-  color: var(--espresso);
+  color: #e6d7be;
   transition: color 180ms ease-out;
 }
 
-.project-github-link:hover,
-.project-github-link:focus-visible {
-  color: var(--accent);
+.eidolon-card-github:hover,
+.eidolon-card-github:focus-visible {
+  color: #a63a2b;
 }
 
-.project-github-link svg {
+.eidolon-card-github svg {
   display: block;
   width: 28px;
   height: 28px;
 }
 
-.project-description {
+.eidolon-card-description {
   max-width: 52ch;
   margin: 0;
-  color: var(--ink-muted);
+  color: #e6d7be;
   font-family: var(--font-body), sans-serif;
   font-size: var(--size-body);
   line-height: 1.6;
 }
 
-.folder-float-space {
-  padding-top: 220px;
+.eidolon-flower {
+  position: absolute;
+  z-index: 2;
+  width: 0;
+  height: 0;
+}
+
+.eidolon-flower-petals {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eidolon-card:not([data-flower-open]) .eidolon-flower-petals {
+  pointer-events: none;
+}
+
+.eidolon-flower-petal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--petal-length);
+  height: var(--petal-width);
+  margin-top: calc(var(--petal-width) / -2);
+  margin-left: calc(var(--petal-length) / -2);
+  opacity: 0;
+  transform-origin: center;
+  will-change: transform, opacity;
+  cursor: pointer;
+}
+
+.eidolon-flower-petal-shape {
+  position: absolute;
+  inset: 0;
+  background: var(--petal-color);
+  clip-path: polygon(
+    0 50%,
+    16% 22%,
+    42% 5%,
+    72% 0,
+    100% 50%,
+    72% 100%,
+    42% 95%,
+    16% 78%
+  );
+  filter: drop-shadow(0 5px 8px rgb(0 0 0 / 24%));
+}
+
+.eidolon-flower-petal-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  padding: 4px 10px;
+  place-items: center;
+  color: #e6d7be;
+  font-family: var(--font-body), sans-serif;
+  font-size: var(--petal-font);
+  line-height: 1.1;
+  text-align: center;
+  transform: rotate(calc(var(--petal-angle) * -1));
+  overflow: visible;
+}
+
+.eidolon-flower-orb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 32% 27%,
+    #c96859 0%,
+    #8e2419 36%,
+    #721b13 100%
+  );
+  box-shadow:
+    0 0 28px rgb(142 36 25 / 42%),
+    0 5px 18px rgb(0 0 0 / 30%);
+  cursor: pointer;
+}
+
+.eidolon-flower-orb:focus-visible {
+  outline: 3px solid #e6d7be;
+  outline-offset: 5px;
+  box-shadow:
+    0 0 0 7px rgb(142 36 25 / 75%),
+    0 0 28px rgb(142 36 25 / 42%);
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .project-row:hover .project-image {
+  .eidolon-card:hover .eidolon-card-image {
     transform: scale(1.05);
     transition: transform 500ms ease-out;
   }
 
-  .project-row .project-image {
+  .eidolon-card .eidolon-card-image {
     transition: transform 500ms ease-out;
   }
 }
@@ -479,15 +567,6 @@ h4 {
   .editorial-section:nth-of-type(even) .section-content {
     margin-inline: 0;
   }
-
-  .project-row,
-  .project-row--reverse {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas:
-      "image"
-      "content";
-    gap: 24px;
-  }
 }
 
 @media (max-height: 640px) and (min-width: 681px) {
@@ -503,6 +582,17 @@ h4 {
 
   .city-art {
     width: min(100%, 620px, 48svh);
+  }
+}
+
+@media (max-width: 767px) {
+  .eidolon-card {
+    height: 560px;
+  }
+
+  .eidolon-card-copy {
+    width: 100%;
+    padding: 28px 24px;
   }
 }
 
