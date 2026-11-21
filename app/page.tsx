@@ -4,26 +4,36 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
-import type { PointerEvent } from "react";
+import { useRef } from "react";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-type WindowPosition = { left: number; top: number };
-type DragOffset = { pointerId: number; x: number; y: number };
 type Project = {
   name: string;
-  description?: string;
-  tech?: string[];
-  summary?: string;
-  link?: string;
-  screenshot?: string;
+  url: string;
+  description: string;
+  image: {
+    src: string;
+    width: number;
+    height: number;
+    alt: string;
+  };
 };
 
-const projects: Project[] = [{ name: "Eidolon" }];
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
+const projects: Project[] = [
+  {
+    name: "Eidolon",
+    url: "https://github.com/nullbenz/eidolon",
+    description:
+      "A safety layer for editing Linux config files. Edit a temporary copy, and Eidolon checks your changes against your real machine and shows a before and after view before anything is applied. Every finding is labeled verified, likely or unknown. Currently supports Hyprland.",
+    image: {
+      src: "/art/eidolon-cli.png",
+      width: 1512,
+      height: 785,
+      alt: "Terminal showing Eidolon's command list, its setup checks passing, and a diff of a changed config",
+    },
+  },
+];
 
 export default function Home() {
   const pageRef = useRef<HTMLElement>(null);
@@ -35,17 +45,6 @@ export default function Home() {
   const titleGroupRef = useRef<HTMLSpanElement>(null);
   const titlePeriodRef = useRef<HTMLSpanElement>(null);
   const heroIntroRef = useRef<HTMLParagraphElement>(null);
-  const projectTriggerRef = useRef<HTMLButtonElement>(null);
-  const projectDialogRef = useRef<HTMLDialogElement>(null);
-  const dialogCloseRef = useRef<HTMLButtonElement>(null);
-  const dragOffsetRef = useRef<DragOffset | null>(null);
-  const [projectOpen, setProjectOpen] = useState(false);
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
-  const [dialogPosition, setDialogPosition] = useState<WindowPosition>({
-    left: 32,
-    top: 32,
-  });
-  const [dialogLayer, setDialogLayer] = useState(20);
 
   useGSAP(
     () => {
@@ -387,93 +386,6 @@ export default function Home() {
     { scope: pageRef },
   );
 
-  useEffect(() => {
-    if (!projectOpen) return;
-    const dialog = projectDialogRef.current;
-    if (!dialog) return;
-
-    if (!dialog.open) dialog.showModal();
-    dialogCloseRef.current?.focus();
-
-    const placeDialog = () => {
-      if (window.innerWidth < 640) return;
-      const rect = dialog.getBoundingClientRect();
-      setDialogPosition({
-        left: clamp(
-          (window.innerWidth - rect.width) / 2,
-          12,
-          window.innerWidth - rect.width - 12,
-        ),
-        top: clamp(
-          (window.innerHeight - rect.height) / 2,
-          12,
-          window.innerHeight - rect.height - 12,
-        ),
-      });
-    };
-    const onResize = () => {
-      if (window.innerWidth < 640) return;
-      const rect = dialog.getBoundingClientRect();
-      setDialogPosition((position) => ({
-        left: clamp(position.left, 12, window.innerWidth - rect.width - 12),
-        top: clamp(position.top, 12, window.innerHeight - rect.height - 12),
-      }));
-    };
-
-    window.requestAnimationFrame(placeDialog);
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      if (dialog.open) dialog.close();
-    };
-  }, [projectOpen]);
-
-  const closeProject = () => {
-    setProjectOpen(false);
-    window.requestAnimationFrame(() => projectTriggerRef.current?.focus());
-  };
-
-  const startWindowDrag = (event: PointerEvent<HTMLDivElement>) => {
-    if (
-      window.innerWidth < 640 ||
-      (event.target as HTMLElement).closest("button")
-    ) {
-      return;
-    }
-    const rect = projectDialogRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    dragOffsetRef.current = {
-      pointerId: event.pointerId,
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setDialogLayer((layer) => layer + 1);
-  };
-
-  const moveWindow = (event: PointerEvent<HTMLDivElement>) => {
-    const drag = dragOffsetRef.current;
-    const dialog = projectDialogRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || !dialog) return;
-    const rect = dialog.getBoundingClientRect();
-    setDialogPosition({
-      left: clamp(
-        event.clientX - drag.x,
-        8,
-        window.innerWidth - rect.width - 8,
-      ),
-      top: clamp(
-        event.clientY - drag.y,
-        8,
-        window.innerHeight - rect.height - 8,
-      ),
-    });
-  };
-
-  const endWindowDrag = () => {
-    dragOffsetRef.current = null;
-  };
-
   return (
     <main className="home-screen" ref={pageRef}>
       <header className="site-header" ref={headerRef}>
@@ -568,58 +480,50 @@ export default function Home() {
         </div>
         <div className="section-content">
           {projects.map((project, index) => (
-            <button
+            <article
               className={`project-row${index % 2 ? " project-row--reverse" : ""}`}
               key={project.name}
-              type="button"
-              aria-haspopup="dialog"
-              aria-label={`Open ${project.name} project window`}
-              onClick={() => {
-                const width = Math.min(560, window.innerWidth - 24);
-                setDialogPosition({
-                  left: Math.max(12, (window.innerWidth - width) / 2),
-                  top: Math.max(12, (window.innerHeight - 360) / 2),
-                });
-                setActiveProject(project);
-                setProjectOpen(true);
-              }}
-              ref={projectTriggerRef}
             >
-              <span className="project-index" aria-hidden="true">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <span className="project-content">
-                <span className="project-overview">
-                  <span className="project-name">{project.name}</span>
-                  {project.description && (
-                    <span className="project-description">
-                      {project.description}
-                    </span>
-                  )}
-                  {project.tech && project.tech.length > 0 && (
-                    <span className="project-tech">
-                      {project.tech.join(" · ")}
-                    </span>
-                  )}
-                </span>
-                {project.screenshot ? (
-                  <span className="project-image-frame">
-                    <Image
-                      src={project.screenshot}
-                      alt={`${project.name} screenshot`}
-                      fill
-                      sizes="(max-width: 767px) 100vw, 50vw"
-                    />
-                  </span>
-                ) : (
-                  <span
-                    className="project-image-placeholder"
-                    role="img"
-                    aria-label={`${project.name} screenshot placeholder`}
+              {project.image && (
+                <figure className="project-image-frame">
+                  <Image
+                    src={project.image.src}
+                    alt={project.image.alt}
+                    width={project.image.width}
+                    height={project.image.height}
+                    loading="lazy"
+                    sizes="(max-width: 767px) 100vw, 50vw"
+                    className="project-image"
                   />
-                )}
-              </span>
-            </button>
+                </figure>
+              )}
+              <div className="project-content">
+                <span className="project-index" aria-hidden="true">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div className="project-name-line">
+                  <h3 className="project-name">{project.name}</h3>
+                  <a
+                    className="project-github-link"
+                    href={project.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${project.name} on GitHub`}
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      width="28"
+                      height="28"
+                      fill="currentColor"
+                    >
+                      <path d="M12 .297a12 12 0 0 0-3.794 23.4c.6.111.82-.261.82-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.84 1.237 1.84 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.467-1.332-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23a11.5 11.5 0 0 1 6.006 0c2.292-1.552 3.298-1.23 3.298-1.23.655 1.652.243 2.873.12 3.176.77.84 1.235 1.91 1.235 3.221 0 4.61-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.216.694.825.576A12.001 12.001 0 0 0 12 .297z" />
+                    </svg>
+                  </a>
+                </div>
+                <p className="project-description">{project.description}</p>
+              </div>
+            </article>
           ))}
         </div>
       </section>
@@ -635,80 +539,6 @@ export default function Home() {
       </section>
 
       <footer className="site-footer" aria-hidden="true" />
-
-      {projectOpen && (
-        <dialog
-          className="project-window"
-          ref={projectDialogRef}
-          style={{
-            left: `${dialogPosition.left}px`,
-            top: `${dialogPosition.top}px`,
-            zIndex: dialogLayer,
-          }}
-          aria-labelledby="project-window-title"
-          onClick={() => setDialogLayer((layer) => layer + 1)}
-          onCancel={(event) => {
-            event.preventDefault();
-            closeProject();
-          }}
-        >
-          <div
-            className="project-window-bar"
-            onPointerDown={startWindowDrag}
-            onPointerMove={moveWindow}
-            onPointerUp={endWindowDrag}
-            onPointerCancel={endWindowDrag}
-            onLostPointerCapture={endWindowDrag}
-          >
-            <span id="project-window-title">
-              {activeProject?.name ?? "Eidolon"}
-            </span>
-            <button
-              className="project-window-close"
-              type="button"
-              aria-label="Close Eidolon window"
-              onClick={closeProject}
-              ref={dialogCloseRef}
-            >
-              ×
-            </button>
-          </div>
-          {activeProject?.summary && (
-            <p className="project-window-summary">{activeProject.summary}</p>
-          )}
-          {activeProject?.tech && activeProject.tech.length > 0 && (
-            <p className="project-window-tech">
-              {activeProject.tech.join(" · ")}
-            </p>
-          )}
-          {activeProject?.link && (
-            <a
-              className="project-window-link"
-              href={activeProject.link}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {activeProject.link}
-            </a>
-          )}
-          {activeProject?.screenshot ? (
-            <div className="project-image-frame project-window-image">
-              <Image
-                src={activeProject.screenshot}
-                alt={`${activeProject.name} screenshot`}
-                fill
-                sizes="560px"
-              />
-            </div>
-          ) : (
-            <div
-              className="project-image-placeholder project-window-image"
-              role="img"
-              aria-label={`${activeProject?.name ?? "Project"} screenshot placeholder`}
-            />
-          )}
-        </dialog>
-      )}
     </main>
   );
 }
