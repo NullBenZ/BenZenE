@@ -7,11 +7,11 @@ import Image from "next/image";
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type CSSProperties,
 } from "react";
+import PetalClicks from "../components/PetalClicks";
 import PetalRain from "../components/PetalRain";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
@@ -44,51 +44,43 @@ const projects: Project[] = [
 
 const flowerPetals = [
   {
-    text: "Edits a temporary copy first",
-    angle: -88,
-    length: 170,
-    width: 82,
-    color: "#8E2419",
-  },
-  {
-    text: "Checks against your real machine",
-    angle: -34,
-    length: 190,
-    width: 74,
-    color: "#A63A2B",
-  },
-  {
-    text: "Shows a before and after view",
-    angle: 34,
-    length: 160,
-    width: 90,
-    color: "#8E2419",
-  },
-  {
-    text: "Verified, likely or unknown labels",
-    angle: 92,
-    length: 185,
+    text: [],
+    length: 100,
     width: 76,
-    color: "#A63A2B",
+    color: "#74152d",
+    path: "M0,50 C18,15 78,4 142,20 C190,34 198,54 154,76 C92,104 24,91 0,50 Z",
   },
   {
-    text: "Nothing applies without your approval",
-    angle: 154,
-    length: 190,
-    width: 84,
-    color: "#8E2419",
+    text: ["Checks against your real machine"],
+    length: 150,
+    width: 78,
+    color: "#9a2744",
+    path: "M0,50 C20,10 92,2 150,22 C195,40 194,62 148,80 C88,98 18,90 0,50 Z",
   },
   {
-    text: "Currently supports Hyprland",
-    angle: 214,
-    length: 160,
-    width: 88,
-    color: "#A63A2B",
+    text: ["Shows a before and after view"],
+    length: 180,
+    width: 86,
+    color: "#74152d",
+    path: "M0,50 C22,8 88,-2 151,21 C198,39 198,61 151,79 C91,102 22,92 0,50 Z",
+  },
+  {
+    text: ["Verified, likely or unknown labels"],
+    length: 150,
+    width: 78,
+    color: "#9a2744",
+    path: "M0,50 C20,12 91,-1 149,20 C195,38 196,61 151,79 C89,101 21,90 0,50 Z",
+  },
+  {
+    text: [],
+    length: 100,
+    width: 76,
+    color: "#74152d",
+    path: "M0,50 C16,12 83,0 148,22 C195,39 194,60 148,78 C88,101 18,91 0,50 Z",
   },
 ];
 
-const FLOWER_RADIUS = 150;
-const FLOWER_REACH = FLOWER_RADIUS + 95;
+const PETAL_OFFSETS = [-75, -38, 0, 38, 75];
 
 function EidolonCard({ project, index }: { project: Project; index: number }) {
   const cardRef = useRef<HTMLElement>(null);
@@ -137,30 +129,26 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
     return () => observer.disconnect();
   }, []);
 
-  const isNarrowCard = cardSize.width > 0 && cardSize.width < 560;
-  const centerX = cardSize.width * (isNarrowCard ? 0.36 : 0.22);
-  const centerY = cardSize.height * 0.58;
+  const isPhone = cardSize.width > 0 && cardSize.width < 640;
+  const centerX = cardSize.width;
+  const centerY = cardSize.height * (isPhone ? 0.5 : 0.43);
+  const maxVerticalReach = Math.max(
+    ...flowerPetals.map((petal, petalIndex) => {
+      const radians = (PETAL_OFFSETS[petalIndex] * Math.PI) / 180;
+      return (
+        Math.abs(Math.sin(radians)) * petal.length +
+        Math.abs(Math.cos(radians)) * petal.width * 0.5
+      );
+    }),
+  );
   const scale =
-    cardSize.width > 0
+    cardSize.height > 0
       ? Math.min(
           1,
-          centerX / FLOWER_REACH,
-          (cardSize.width - centerX) / FLOWER_REACH,
-          centerY / FLOWER_REACH,
-          (cardSize.height - centerY) / FLOWER_REACH,
+          (Math.min(centerY, cardSize.height - centerY) - 2) / maxVerticalReach,
         )
       : 1;
-  const petalTargets = useMemo(
-    () =>
-      flowerPetals.map((petal) => {
-        const radians = (petal.angle * Math.PI) / 180;
-        return {
-          x: Math.cos(radians) * FLOWER_RADIUS * scale,
-          y: Math.sin(radians) * FLOWER_RADIUS * scale,
-        };
-      }),
-    [scale],
-  );
+  const petalAngles = PETAL_OFFSETS.map((offset) => 180 - offset);
 
   useEffect(() => {
     if (!open) return;
@@ -185,18 +173,16 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
     const petals = petalRefs.current.slice(0, flowerPetals.length);
     if (!orb || petals.some((petal) => !petal)) return;
 
-    const targets = petals.map((_, petalIndex) => petalTargets[petalIndex]);
+    const shapes = petals
+      .map((petal) => petal?.querySelector("svg") ?? null)
+      .filter((shape): shape is SVGSVGElement => shape !== null);
+    if (shapes.length !== petals.length) return;
     const timeline = gsap.timeline();
 
     if (open) {
       if (reducedMotion) {
-        gsap.set(petals, {
-          x: (i) => targets[i].x,
-          y: (i) => targets[i].y,
-          rotation: (i) => flowerPetals[i].angle,
-          scale: 1,
-          opacity: 0,
-        });
+        gsap.set(shapes, { scaleX: 1, rotation: 0, force3D: false });
+        gsap.set(petals, { opacity: 0 });
         gsap.set(orb, { scale: 1, rotation: 0 });
         timeline.to(petals, {
           opacity: 1,
@@ -205,27 +191,26 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
           ease: "none",
         });
       } else {
-        gsap.set(petals, {
-          x: 0,
-          y: 0,
-          rotation: (i) => flowerPetals[i].angle - 18,
-          scale: 0,
-          opacity: 1,
+        gsap.set(shapes, {
+          scaleX: 0,
+          rotation: -12,
+          transformOrigin: "0% 50%",
+          force3D: false,
         });
+        gsap.set(petals, { opacity: 1 });
         gsap.set(orb, { scale: 1, rotation: 0 });
         timeline
           .to(
             orb,
-            { scale: 60 / 44, rotation: 90, duration: 0.5, ease: "power2.out" },
+            { scale: 1.06, rotation: 90, duration: 0.5, ease: "power2.out" },
             0,
           )
           .to(
-            petals,
+            shapes,
             {
-              x: (i) => targets[i].x,
-              y: (i) => targets[i].y,
-              rotation: (i) => flowerPetals[i].angle,
-              scale: 1,
+              scaleX: 1,
+              rotation: 0,
+              force3D: false,
               duration: 0.48,
               ease: "back.out(1.45)",
               stagger: 0.11,
@@ -234,13 +219,8 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
           );
       }
     } else if (reducedMotion) {
-      gsap.set(petals, {
-        x: (i) => targets[i].x,
-        y: (i) => targets[i].y,
-        rotation: (i) => flowerPetals[i].angle,
-        scale: 1,
-        opacity: 1,
-      });
+      gsap.set(shapes, { scaleX: 1, rotation: 0, force3D: false });
+      gsap.set(petals, { opacity: 1 });
       gsap.set(orb, { scale: 1, rotation: 0 });
       timeline.to(petals, {
         opacity: 0,
@@ -250,15 +230,23 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
     } else {
       timeline
         .to(
-          petals,
+          shapes,
           {
-            x: 0,
-            y: 0,
-            rotation: (i) => flowerPetals[i].angle - 18,
-            scale: 0,
+            scaleX: 0,
+            rotation: -12,
+            force3D: false,
             duration: 0.28,
             ease: "power2.in",
             stagger: { each: 0.045, from: "end" },
+          },
+          0,
+        )
+        .to(
+          petals,
+          {
+            opacity: 0,
+            duration: 0.2,
+            ease: "power1.out",
           },
           0,
         )
@@ -272,7 +260,7 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
     return () => {
       timeline.kill();
     };
-  }, [open, petalTargets, reducedMotion, scale]);
+  }, [open, reducedMotion, scale]);
 
   const cancelHoverClose = () => {
     if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
@@ -290,7 +278,6 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
   const flowerStyle = {
     left: `${centerX}px`,
     top: `${centerY}px`,
-    "--flower-scale": scale,
   } as CSSProperties;
 
   return (
@@ -343,33 +330,73 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
             id="eidolon-flower-list"
             aria-hidden={!open}
           >
-            {flowerPetals.map((petal, petalIndex) => (
-              <li
-                key={petal.text}
-                className="eidolon-flower-petal"
-                ref={(element) => {
-                  petalRefs.current[petalIndex] = element;
-                }}
-                style={
-                  {
-                    "--petal-angle": `${petal.angle}deg`,
-                    "--petal-color": petal.color,
-                    "--petal-length": `${petal.length * scale}px`,
-                    "--petal-width": `${petal.width * scale}px`,
-                    "--petal-font": `${Math.max(12, 14 * scale)}px`,
-                  } as CSSProperties
-                }
-                onPointerEnter={openOnHover}
-                onPointerLeave={closeAfterHover}
-                onClick={toggleOpen}
-              >
-                <span
-                  className="eidolon-flower-petal-shape"
-                  aria-hidden="true"
-                />
-                <span className="eidolon-flower-petal-text">{petal.text}</span>
-              </li>
-            ))}
+            {flowerPetals.map((petal, petalIndex) => {
+              const gradientId = `eidolon-petal-${index}-${petalIndex}`;
+              return (
+                <li
+                  key={petalIndex}
+                  className="eidolon-flower-petal"
+                  ref={(element) => {
+                    petalRefs.current[petalIndex] = element;
+                  }}
+                  style={
+                    {
+                      "--petal-angle": `${petalAngles[petalIndex]}deg`,
+                      "--petal-length": `${petal.length * scale}px`,
+                      "--petal-width": `${petal.width * scale}px`,
+                      "--petal-font": "12px",
+                    } as CSSProperties
+                  }
+                  onPointerEnter={openOnHover}
+                  onPointerLeave={closeAfterHover}
+                  onClick={toggleOpen}
+                >
+                  <svg
+                    className="eidolon-flower-petal-shape"
+                    viewBox="0 0 200 100"
+                    aria-hidden="true"
+                    focusable="false"
+                    shapeRendering="geometricPrecision"
+                  >
+                    <defs>
+                      <linearGradient
+                        id={gradientId}
+                        x1="0%"
+                        y1="100%"
+                        x2="100%"
+                        y2="0%"
+                      >
+                        <stop offset="0%" stopColor="#3c0918" />
+                        <stop offset="42%" stopColor={petal.color} />
+                        <stop offset="72%" stopColor="#8b2039" />
+                        <stop offset="100%" stopColor="#450b1c" />
+                      </linearGradient>
+                    </defs>
+                    <path
+                      d={petal.path}
+                      fill={`url(#${gradientId})`}
+                      stroke="#d18a9a"
+                      strokeOpacity="0.62"
+                      strokeWidth="1.5"
+                    />
+                    <path
+                      d="M10,50 C56,47 108,34 166,27 M10,50 C58,40 104,22 145,19 M10,50 C58,60 104,78 145,81 M10,50 C56,54 108,67 166,73"
+                      fill="none"
+                      stroke="#e6aab5"
+                      strokeOpacity="0.32"
+                      strokeWidth="1.15"
+                    />
+                  </svg>
+                  {petal.text.length > 0 && (
+                    <span className="eidolon-flower-petal-text">
+                      {petal.text.map((line) => (
+                        <span key={line}>{line}</span>
+                      ))}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           <button
             className="eidolon-flower-orb"
@@ -741,6 +768,17 @@ export default function Home() {
 
   return (
     <main className="home-screen" ref={pageRef}>
+      <div className="dahlia-corners" aria-hidden="true">
+        <Image
+          src="/art/dahlia-clean.png"
+          alt=""
+          width={256}
+          height={247}
+          aria-hidden="true"
+          priority
+          className="dahlia-corner-top"
+        />
+      </div>
       <header className="site-header" ref={headerRef}>
         <span className="dock-slot" aria-hidden="true" ref={slotRef} />
       </header>
@@ -848,7 +886,38 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="site-footer" aria-hidden="true" />
+      <footer className="site-footer" id="page-end">
+        <div className="dahlia-corner-bottom" aria-hidden="true">
+          <Image
+            src="/art/dahlia-clean.png"
+            alt=""
+            width={256}
+            height={247}
+            aria-hidden="true"
+            priority
+            className="dahlia-bottom-flower dahlia-bottom-large"
+          />
+          <Image
+            src="/art/dahlia-clean.png"
+            alt=""
+            width={256}
+            height={247}
+            aria-hidden="true"
+            priority
+            className="dahlia-bottom-flower dahlia-bottom-medium"
+          />
+          <Image
+            src="/art/dahlia-clean.png"
+            alt=""
+            width={256}
+            height={247}
+            aria-hidden="true"
+            priority
+            className="dahlia-bottom-flower dahlia-bottom-small"
+          />
+        </div>
+        <PetalClicks />
+      </footer>
     </main>
   );
 }

@@ -58,6 +58,56 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.petal-clicks-pile,
+.petal-clicks-air {
+  position: fixed;
+  left: 0;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+}
+
+.petal-clicks-pile {
+  position: absolute;
+  left: calc(50% - 50vw);
+  z-index: 0;
+  top: auto;
+  bottom: 0;
+  height: calc(var(--petal-pile-height, 44px) + 8px);
+  opacity: 0.85;
+}
+
+.petal-clicks-air {
+  z-index: 2;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+}
+
+.petal-clicks-counter {
+  position: fixed;
+  z-index: 11;
+  right: clamp(12px, 1.67vw, 24px);
+  bottom: 56px;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 32px));
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgb(38 33 29 / 24%);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--espresso);
+  font-family: var(--font-mono), monospace;
+  font-size: var(--size-label);
+  line-height: 1.4;
+  text-align: right;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+}
+
 a,
 button {
   color: inherit;
@@ -73,7 +123,62 @@ button:focus-visible {
   position: relative;
   min-height: 100svh;
   overflow-x: clip;
+  background: transparent;
   padding: var(--page-top-inset) clamp(22px, 5.5vw, 88px) 24px;
+}
+
+.dahlia-corners {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.dahlia-corner-top {
+  position: absolute;
+  top: -55px;
+  right: -55px;
+  width: 220px;
+  height: auto;
+  transform: rotate(15deg);
+}
+
+.dahlia-corner-bottom {
+  position: absolute;
+  z-index: 1;
+  bottom: 0;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  height: 260px;
+  clip-path: inset(0 -100vw 0 -100vw);
+  pointer-events: none;
+}
+
+.dahlia-bottom-flower {
+  position: absolute;
+  height: auto;
+}
+
+.dahlia-bottom-large {
+  bottom: -26px;
+  left: -96px;
+  width: 200px;
+  transform: rotate(-12deg);
+}
+
+.dahlia-bottom-medium {
+  bottom: -4px;
+  left: 82px;
+  width: 170px;
+  transform: rotate(17deg);
+}
+
+.dahlia-bottom-small {
+  bottom: -30px;
+  left: 212px;
+  width: 140px;
+  transform: rotate(-23deg);
 }
 
 .site-header {
@@ -98,6 +203,8 @@ button:focus-visible {
 
 .hero {
   position: relative;
+  z-index: 3;
+  background: transparent;
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
   align-items: center;
@@ -260,7 +367,10 @@ h4 {
 }
 
 .editorial-section {
+  position: relative;
+  z-index: 3;
   width: min(100%, 1280px);
+  background: transparent;
   margin: 0 auto;
   padding: clamp(88px, 12vw, 160px) 0;
   border-top: 1px solid rgb(56 42 43 / 24%);
@@ -328,7 +438,7 @@ h4 {
   position: relative;
   isolation: isolate;
   width: 100%;
-  height: clamp(480px, 52vw, 620px);
+  aspect-ratio: 1512 / 785;
   overflow: hidden;
   border: 1px solid var(--espresso);
   background: #090a0d;
@@ -337,10 +447,10 @@ h4 {
 
 .eidolon-card-image {
   z-index: -2;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   transform: scale(1);
-  transform-origin: center;
+  transform-origin: left center;
   will-change: transform;
 }
 
@@ -470,43 +580,40 @@ h4 {
   width: var(--petal-length);
   height: var(--petal-width);
   margin-top: calc(var(--petal-width) / -2);
-  margin-left: calc(var(--petal-length) / -2);
   opacity: 0;
-  transform-origin: center;
-  will-change: transform, opacity;
+  transform: rotate(var(--petal-angle));
+  transform-origin: 0% 50%;
   cursor: pointer;
 }
 
 .eidolon-flower-petal-shape {
   position: absolute;
   inset: 0;
-  background: var(--petal-color);
-  clip-path: polygon(
-    0 50%,
-    16% 22%,
-    42% 5%,
-    72% 0,
-    100% 50%,
-    72% 100%,
-    42% 95%,
-    16% 78%
-  );
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform-origin: 0% 50%;
   filter: drop-shadow(0 5px 8px rgb(0 0 0 / 24%));
+}
+
+.eidolon-flower-petal-shape path {
+  shape-rendering: geometricPrecision;
 }
 
 .eidolon-flower-petal-text {
   position: absolute;
-  inset: 0;
-  display: grid;
-  padding: 4px 10px;
-  place-items: center;
+  top: 50%;
+  left: 65%;
+  display: flex;
+  width: 78%;
+  flex-direction: column;
+  gap: 2px;
   color: #e6d7be;
   font-family: var(--font-body), sans-serif;
   font-size: var(--petal-font);
   line-height: 1.1;
   text-align: center;
-  transform: rotate(calc(var(--petal-angle) * -1));
-  overflow: visible;
+  transform: translate(-50%, -50%) rotate(calc(var(--petal-angle) * -1));
 }
 
 .eidolon-flower-orb {
@@ -514,30 +621,29 @@ h4 {
   top: 0;
   left: 0;
   z-index: 3;
-  width: 44px;
-  height: 44px;
-  margin: -22px 0 0 -22px;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: radial-gradient(
     circle at 32% 27%,
-    #c96859 0%,
-    #8e2419 36%,
-    #721b13 100%
+    #c16a78 0%,
+    #7b1832 36%,
+    #3b0a1b 100%
   );
   box-shadow:
-    0 0 28px rgb(142 36 25 / 42%),
+    0 0 28px rgb(123 24 50 / 42%),
     0 5px 18px rgb(0 0 0 / 30%);
   cursor: pointer;
 }
 
 .eidolon-flower-orb:focus-visible {
-  outline: 3px solid #e6d7be;
-  outline-offset: 5px;
+  outline: none;
   box-shadow:
-    0 0 0 7px rgb(142 36 25 / 75%),
-    0 0 28px rgb(142 36 25 / 42%);
+    inset 0 0 0 3px #e6d7be,
+    0 0 28px rgb(123 24 50 / 42%);
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
@@ -557,10 +663,15 @@ h4 {
 }
 
 .site-footer {
+  position: relative;
+  isolation: isolate;
+  z-index: 3;
   width: min(100%, 1280px);
-  height: 1px;
+  min-height: 260px;
   margin: 0 auto;
+  padding-bottom: 64px;
   border-top: 1px solid rgb(56 42 43 / 24%);
+  background: transparent;
 }
 
 @media (max-width: 900px) {
@@ -611,10 +722,6 @@ h4 {
 }
 
 @media (max-width: 767px) {
-  .eidolon-card {
-    height: 560px;
-  }
-
   .eidolon-card-copy {
     width: 100%;
     padding: 28px 24px;
@@ -675,6 +782,39 @@ h4 {
 
   .contact-section {
     min-height: 0;
+  }
+
+  .dahlia-corner-top {
+    top: -32px;
+    right: -32px;
+    width: 130px;
+  }
+
+  .dahlia-corner-bottom {
+    height: 180px;
+  }
+
+  .dahlia-bottom-large {
+    bottom: -20px;
+    left: -56px;
+    width: 120px;
+  }
+
+  .dahlia-bottom-medium {
+    bottom: -5px;
+    left: 45px;
+    width: 100px;
+  }
+
+  .dahlia-bottom-small {
+    bottom: -15px;
+    left: 125px;
+    width: 80px;
+  }
+
+  .site-footer {
+    min-height: 180px;
+    padding-bottom: 56px;
   }
 }
 
