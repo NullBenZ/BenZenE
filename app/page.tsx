@@ -11,6 +11,16 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 
 type WindowPosition = { left: number; top: number };
 type DragOffset = { pointerId: number; x: number; y: number };
+type Project = {
+  name: string;
+  description?: string;
+  tech?: string[];
+  summary?: string;
+  link?: string;
+  screenshot?: string;
+};
+
+const projects: Project[] = [{ name: "Eidolon" }];
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max);
@@ -30,6 +40,7 @@ export default function Home() {
   const dialogCloseRef = useRef<HTMLButtonElement>(null);
   const dragOffsetRef = useRef<DragOffset | null>(null);
   const [projectOpen, setProjectOpen] = useState(false);
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [dialogPosition, setDialogPosition] = useState<WindowPosition>({
     left: 32,
     top: 32,
@@ -527,18 +538,23 @@ export default function Home() {
         aria-labelledby="about-title"
       >
         <div className="section-heading">
-          <span className="section-number" aria-hidden="true">
-            01
-          </span>
           <h2 id="about-title">About</h2>
         </div>
-        <div className="about-layout">
-          <div
-            className="portrait-placeholder"
-            role="img"
-            aria-label="Portrait placeholder"
-          />
-          <div className="about-copy" />
+        <div className="about-layout section-content">
+          <blockquote className="about-quote">
+            <p>
+              I wanted to understand how things break, so I could learn how to
+              fix them and make them even better.
+            </p>
+          </blockquote>
+          <div className="about-copy">
+            <p>
+              My name is Shakti Singh. I&apos;m 20. I like to understand the
+              concept behind how something works and how I can break it, and
+              that is how I got into the field of cybersecurity. I like all
+              kinds of music, and anime and drawing are my hobbies.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -548,32 +564,63 @@ export default function Home() {
         aria-labelledby="projects-title"
       >
         <div className="section-heading">
-          <span className="section-number" aria-hidden="true">
-            02
-          </span>
           <h2 id="projects-title">Projects</h2>
         </div>
         <div className="section-content">
-          <button
-            className="project-row"
-            type="button"
-            aria-haspopup="dialog"
-            aria-label="Open Eidolon project window"
-            onClick={() => {
-              const width = Math.min(560, window.innerWidth - 24);
-              setDialogPosition({
-                left: Math.max(12, (window.innerWidth - width) / 2),
-                top: Math.max(12, (window.innerHeight - 360) / 2),
-              });
-              setProjectOpen(true);
-            }}
-            ref={projectTriggerRef}
-          >
-            <span className="project-name">Eidolon</span>
-            <span className="project-open-mark" aria-hidden="true">
-              ↗
-            </span>
-          </button>
+          {projects.map((project, index) => (
+            <button
+              className={`project-row${index % 2 ? " project-row--reverse" : ""}`}
+              key={project.name}
+              type="button"
+              aria-haspopup="dialog"
+              aria-label={`Open ${project.name} project window`}
+              onClick={() => {
+                const width = Math.min(560, window.innerWidth - 24);
+                setDialogPosition({
+                  left: Math.max(12, (window.innerWidth - width) / 2),
+                  top: Math.max(12, (window.innerHeight - 360) / 2),
+                });
+                setActiveProject(project);
+                setProjectOpen(true);
+              }}
+              ref={projectTriggerRef}
+            >
+              <span className="project-index" aria-hidden="true">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="project-content">
+                <span className="project-overview">
+                  <span className="project-name">{project.name}</span>
+                  {project.description && (
+                    <span className="project-description">
+                      {project.description}
+                    </span>
+                  )}
+                  {project.tech && project.tech.length > 0 && (
+                    <span className="project-tech">
+                      {project.tech.join(" · ")}
+                    </span>
+                  )}
+                </span>
+                {project.screenshot ? (
+                  <span className="project-image-frame">
+                    <Image
+                      src={project.screenshot}
+                      alt={`${project.name} screenshot`}
+                      fill
+                      sizes="(max-width: 767px) 100vw, 50vw"
+                    />
+                  </span>
+                ) : (
+                  <span
+                    className="project-image-placeholder"
+                    role="img"
+                    aria-label={`${project.name} screenshot placeholder`}
+                  />
+                )}
+              </span>
+            </button>
+          ))}
         </div>
       </section>
 
@@ -583,9 +630,6 @@ export default function Home() {
         aria-labelledby="contact-title"
       >
         <div className="section-heading">
-          <span className="section-number" aria-hidden="true">
-            03
-          </span>
           <h2 id="contact-title">Contact</h2>
         </div>
       </section>
@@ -616,7 +660,9 @@ export default function Home() {
             onPointerCancel={endWindowDrag}
             onLostPointerCapture={endWindowDrag}
           >
-            <span id="project-window-title">Eidolon</span>
+            <span id="project-window-title">
+              {activeProject?.name ?? "Eidolon"}
+            </span>
             <button
               className="project-window-close"
               type="button"
@@ -627,11 +673,40 @@ export default function Home() {
               ×
             </button>
           </div>
-          <div
-            className="eidolon-image-placeholder"
-            role="img"
-            aria-label="Eidolon screenshot placeholder"
-          />
+          {activeProject?.summary && (
+            <p className="project-window-summary">{activeProject.summary}</p>
+          )}
+          {activeProject?.tech && activeProject.tech.length > 0 && (
+            <p className="project-window-tech">
+              {activeProject.tech.join(" · ")}
+            </p>
+          )}
+          {activeProject?.link && (
+            <a
+              className="project-window-link"
+              href={activeProject.link}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {activeProject.link}
+            </a>
+          )}
+          {activeProject?.screenshot ? (
+            <div className="project-image-frame project-window-image">
+              <Image
+                src={activeProject.screenshot}
+                alt={`${activeProject.name} screenshot`}
+                fill
+                sizes="560px"
+              />
+            </div>
+          ) : (
+            <div
+              className="project-image-placeholder project-window-image"
+              role="img"
+              aria-label={`${activeProject?.name ?? "Project"} screenshot placeholder`}
+            />
+          )}
         </dialog>
       )}
     </main>
