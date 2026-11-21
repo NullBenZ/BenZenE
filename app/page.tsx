@@ -886,38 +886,37 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="site-footer" id="page-end">
-        <div className="dahlia-corner-bottom" aria-hidden="true">
-          <Image
-            src="/art/dahlia-clean.png"
-            alt=""
-            width={256}
-            height={247}
-            aria-hidden="true"
-            priority
-            className="dahlia-bottom-flower dahlia-bottom-large"
-          />
-          <Image
-            src="/art/dahlia-clean.png"
-            alt=""
-            width={256}
-            height={247}
-            aria-hidden="true"
-            priority
-            className="dahlia-bottom-flower dahlia-bottom-medium"
-          />
-          <Image
-            src="/art/dahlia-clean.png"
-            alt=""
-            width={256}
-            height={247}
-            aria-hidden="true"
-            priority
-            className="dahlia-bottom-flower dahlia-bottom-small"
-          />
-        </div>
-        <PetalClicks />
-      </footer>
+      <footer className="site-footer" id="page-end"></footer>
+      <div className="dahlia-corner-bottom" aria-hidden="true">
+        <Image
+          src="/art/dahlia-clean.png"
+          alt=""
+          width={256}
+          height={247}
+          aria-hidden="true"
+          priority
+          className="dahlia-bottom-flower dahlia-bottom-large"
+        />
+        <Image
+          src="/art/dahlia-clean.png"
+          alt=""
+          width={256}
+          height={247}
+          aria-hidden="true"
+          priority
+          className="dahlia-bottom-flower dahlia-bottom-medium"
+        />
+        <Image
+          src="/art/dahlia-clean.png"
+          alt=""
+          width={256}
+          height={247}
+          aria-hidden="true"
+          priority
+          className="dahlia-bottom-flower dahlia-bottom-small"
+        />
+      </div>
+      <PetalClicks />
     </main>
   );
 }
