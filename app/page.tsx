@@ -4,15 +4,21 @@ import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
+import { Network } from "lucide-react";
 import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+  siC,
+  siCplusplus,
+  siCss,
+  siGit,
+  siHtml5,
+  siJavascript,
+  siLinux,
+  siPython,
+  siRust,
+  type SimpleIcon,
+} from "simple-icons";
+import { useRef } from "react";
 import PetalClicks from "../components/PetalClicks";
-import PetalRain from "../components/PetalRain";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -32,7 +38,8 @@ const projects: Project[] = [
   {
     name: "Eidolon",
     url: "https://github.com/nullbenz/eidolon",
-    description: "A safety layer for editing Linux config files.",
+    description:
+      "A safety layer for editing Linux config files. Edit a temporary copy, and Eidolon checks your changes against your real machine and shows a before and after view before anything is applied. Every finding is labeled verified, likely or unknown. Currently supports Hyprland.",
     image: {
       src: "/art/eidolon-cli.png",
       width: 1512,
@@ -42,268 +49,47 @@ const projects: Project[] = [
   },
 ];
 
-const flowerPetals = [
-  {
-    text: [],
-    length: 100,
-    width: 76,
-    color: "#74152d",
-    path: "M0,50 C18,15 78,4 142,20 C190,34 198,54 154,76 C92,104 24,91 0,50 Z",
-  },
-  {
-    text: ["Checks against your real machine"],
-    length: 150,
-    width: 78,
-    color: "#9a2744",
-    path: "M0,50 C20,10 92,2 150,22 C195,40 194,62 148,80 C88,98 18,90 0,50 Z",
-  },
-  {
-    text: ["Shows a before and after view"],
-    length: 180,
-    width: 86,
-    color: "#74152d",
-    path: "M0,50 C22,8 88,-2 151,21 C198,39 198,61 151,79 C91,102 22,92 0,50 Z",
-  },
-  {
-    text: ["Verified, likely or unknown labels"],
-    length: 150,
-    width: 78,
-    color: "#9a2744",
-    path: "M0,50 C20,12 91,-1 149,20 C195,38 196,61 151,79 C89,101 21,90 0,50 Z",
-  },
-  {
-    text: [],
-    length: 100,
-    width: 76,
-    color: "#74152d",
-    path: "M0,50 C16,12 83,0 148,22 C195,39 194,60 148,78 C88,101 18,91 0,50 Z",
-  },
+type Skill = {
+  name: string;
+  icon: SimpleIcon | "network";
+  learning?: boolean;
+};
+
+const skills: Skill[] = [
+  { name: "Git", icon: siGit },
+  { name: "JavaScript", icon: siJavascript },
+  { name: "Python", icon: siPython },
+  { name: "Rust", icon: siRust, learning: true },
+  { name: "C", icon: siC },
+  { name: "C++", icon: siCplusplus },
+  { name: "Linux", icon: siLinux },
+  { name: "HTML", icon: siHtml5 },
+  { name: "CSS", icon: siCss },
+  { name: "Networking", icon: "network" },
 ];
 
-const PETAL_OFFSETS = [-75, -38, 0, 38, 75];
-
-function EidolonCard({ project, index }: { project: Project; index: number }) {
-  const cardRef = useRef<HTMLElement>(null);
-  const flowerRef = useRef<HTMLDivElement>(null);
-  const orbRef = useRef<HTMLButtonElement>(null);
-  const petalRefs = useRef<(HTMLLIElement | null)[]>([]);
-  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const [open, setOpen] = useState(false);
-  const [hoverEnabled, setHoverEnabled] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
-  const [cardSize, setCardSize] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    const hover = window.matchMedia("(hover: hover) and (pointer: fine)");
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const syncHover = () => setHoverEnabled(hover.matches);
-    const syncReduced = () => setReducedMotion(reduced.matches);
-    syncHover();
-    syncReduced();
-    hover.addEventListener("change", syncHover);
-    reduced.addEventListener("change", syncReduced);
-    return () => {
-      hover.removeEventListener("change", syncHover);
-      reduced.removeEventListener("change", syncReduced);
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    if (!card) return;
-
-    const measure = () => {
-      const rect = card.getBoundingClientRect();
-      setCardSize((current) =>
-        current.width === rect.width && current.height === rect.height
-          ? current
-          : { width: rect.width, height: rect.height },
-      );
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(card);
-    return () => observer.disconnect();
-  }, []);
-
-  const isPhone = cardSize.width > 0 && cardSize.width < 640;
-  const centerX = cardSize.width;
-  const centerY = cardSize.height * (isPhone ? 0.5 : 0.43);
-  const maxVerticalReach = Math.max(
-    ...flowerPetals.map((petal, petalIndex) => {
-      const radians = (PETAL_OFFSETS[petalIndex] * Math.PI) / 180;
-      return (
-        Math.abs(Math.sin(radians)) * petal.length +
-        Math.abs(Math.cos(radians)) * petal.width * 0.5
-      );
-    }),
-  );
-  const scale =
-    cardSize.height > 0
-      ? Math.min(
-          1,
-          (Math.min(centerY, cardSize.height - centerY) - 2) / maxVerticalReach,
-        )
-      : 1;
-  const petalAngles = PETAL_OFFSETS.map((offset) => 180 - offset);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const onOutsidePointer = (event: PointerEvent) => {
-      if (!flowerRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("pointerdown", onOutsidePointer);
-    document.addEventListener("keydown", onEscape);
-    return () => {
-      document.removeEventListener("pointerdown", onOutsidePointer);
-      document.removeEventListener("keydown", onEscape);
-    };
-  }, [open]);
-
-  useLayoutEffect(() => {
-    const orb = orbRef.current;
-    const petals = petalRefs.current.slice(0, flowerPetals.length);
-    if (!orb || petals.some((petal) => !petal)) return;
-
-    const shapes = petals
-      .map((petal) => petal?.querySelector("svg") ?? null)
-      .filter((shape): shape is SVGSVGElement => shape !== null);
-    if (shapes.length !== petals.length) return;
-    const timeline = gsap.timeline();
-
-    if (open) {
-      if (reducedMotion) {
-        gsap.set(shapes, { scaleX: 1, rotation: 0, force3D: false });
-        gsap.set(petals, { opacity: 0 });
-        gsap.set(orb, { scale: 1, rotation: 0 });
-        timeline.to(petals, {
-          opacity: 1,
-          duration: 0.18,
-          stagger: 0.11,
-          ease: "none",
-        });
-      } else {
-        gsap.set(shapes, {
-          scaleX: 0,
-          rotation: -12,
-          transformOrigin: "0% 50%",
-          force3D: false,
-        });
-        gsap.set(petals, { opacity: 1 });
-        gsap.set(orb, { scale: 1, rotation: 0 });
-        timeline
-          .to(
-            orb,
-            { scale: 1.06, rotation: 90, duration: 0.5, ease: "power2.out" },
-            0,
-          )
-          .to(
-            shapes,
-            {
-              scaleX: 1,
-              rotation: 0,
-              force3D: false,
-              duration: 0.48,
-              ease: "back.out(1.45)",
-              stagger: 0.11,
-            },
-            0.04,
-          );
-      }
-    } else if (reducedMotion) {
-      gsap.set(shapes, { scaleX: 1, rotation: 0, force3D: false });
-      gsap.set(petals, { opacity: 1 });
-      gsap.set(orb, { scale: 1, rotation: 0 });
-      timeline.to(petals, {
-        opacity: 0,
-        duration: 0.14,
-        stagger: { each: 0.045, from: "end" },
-      });
-    } else {
-      timeline
-        .to(
-          shapes,
-          {
-            scaleX: 0,
-            rotation: -12,
-            force3D: false,
-            duration: 0.28,
-            ease: "power2.in",
-            stagger: { each: 0.045, from: "end" },
-          },
-          0,
-        )
-        .to(
-          petals,
-          {
-            opacity: 0,
-            duration: 0.2,
-            ease: "power1.out",
-          },
-          0,
-        )
-        .to(
-          orb,
-          { scale: 1, rotation: 0, duration: 0.32, ease: "power2.inOut" },
-          0,
-        );
-    }
-
-    return () => {
-      timeline.kill();
-    };
-  }, [open, reducedMotion, scale]);
-
-  const cancelHoverClose = () => {
-    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
-  };
-  const openOnHover = () => {
-    cancelHoverClose();
-    if (hoverEnabled) setOpen(true);
-  };
-  const closeAfterHover = () => {
-    if (!hoverEnabled) return;
-    cancelHoverClose();
-    hoverCloseTimer.current = setTimeout(() => setOpen(false), 150);
-  };
-  const toggleOpen = () => setOpen((current) => !current);
-  const flowerStyle = {
-    left: `${centerX}px`,
-    top: `${centerY}px`,
-  } as CSSProperties;
-
+function EidolonCard({ project }: { project: Project }) {
   return (
     <div className="eidolon-project">
-      <span className="eidolon-project-index" aria-hidden="true">
-        {String(index + 1).padStart(2, "0")}
-      </span>
-      <article
-        className="eidolon-card"
-        ref={cardRef}
-        data-flower-open={open ? "" : undefined}
-      >
-        <Image
-          src={project.image.src}
-          alt={project.image.alt}
-          fill
-          sizes="(max-width: 767px) 100vw, 1120px"
-          loading="lazy"
-          className="eidolon-card-image"
-        />
-        <div className="eidolon-card-shade" aria-hidden="true" />
-        <PetalRain active={open} />
-
-        <div className="eidolon-card-copy">
+      <div className="eidolon-project-card-column">
+        <article className="eidolon-card">
+          <Image
+            src={project.image.src}
+            alt={project.image.alt}
+            fill
+            sizes="(max-width: 767px) 100vw, 672px"
+            loading="lazy"
+            className="eidolon-card-image"
+          />
+        </article>
+      </div>
+      <div className="eidolon-project-details">
+        <div className="eidolon-project-heading">
+          <span className="eidolon-project-index" aria-hidden="true">
+            01
+          </span>
           <div className="eidolon-card-title-line">
-            <h3 className="eidolon-card-title">EIDOLON</h3>
+            <h3 className="eidolon-card-title">{project.name}</h3>
             <a
               className="eidolon-card-github"
               href={project.url}
@@ -323,95 +109,8 @@ function EidolonCard({ project, index }: { project: Project; index: number }) {
             </a>
           </div>
         </div>
-
-        <div className="eidolon-flower" ref={flowerRef} style={flowerStyle}>
-          <ul
-            className="eidolon-flower-petals"
-            id="eidolon-flower-list"
-            aria-hidden={!open}
-          >
-            {flowerPetals.map((petal, petalIndex) => {
-              const gradientId = `eidolon-petal-${index}-${petalIndex}`;
-              return (
-                <li
-                  key={petalIndex}
-                  className="eidolon-flower-petal"
-                  ref={(element) => {
-                    petalRefs.current[petalIndex] = element;
-                  }}
-                  style={
-                    {
-                      "--petal-angle": `${petalAngles[petalIndex]}deg`,
-                      "--petal-length": `${petal.length * scale}px`,
-                      "--petal-width": `${petal.width * scale}px`,
-                      "--petal-font": "12px",
-                    } as CSSProperties
-                  }
-                  onPointerEnter={openOnHover}
-                  onPointerLeave={closeAfterHover}
-                  onClick={toggleOpen}
-                >
-                  <svg
-                    className="eidolon-flower-petal-shape"
-                    viewBox="0 0 200 100"
-                    aria-hidden="true"
-                    focusable="false"
-                    shapeRendering="geometricPrecision"
-                  >
-                    <defs>
-                      <linearGradient
-                        id={gradientId}
-                        x1="0%"
-                        y1="100%"
-                        x2="100%"
-                        y2="0%"
-                      >
-                        <stop offset="0%" stopColor="#3c0918" />
-                        <stop offset="42%" stopColor={petal.color} />
-                        <stop offset="72%" stopColor="#8b2039" />
-                        <stop offset="100%" stopColor="#450b1c" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d={petal.path}
-                      fill={`url(#${gradientId})`}
-                      stroke="#d18a9a"
-                      strokeOpacity="0.62"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M10,50 C56,47 108,34 166,27 M10,50 C58,40 104,22 145,19 M10,50 C58,60 104,78 145,81 M10,50 C56,54 108,67 166,73"
-                      fill="none"
-                      stroke="#e6aab5"
-                      strokeOpacity="0.32"
-                      strokeWidth="1.15"
-                    />
-                  </svg>
-                  {petal.text.length > 0 && (
-                    <span className="eidolon-flower-petal-text">
-                      {petal.text.map((line) => (
-                        <span key={line}>{line}</span>
-                      ))}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <button
-            className="eidolon-flower-orb"
-            type="button"
-            ref={orbRef}
-            aria-label="Show how Eidolon works"
-            aria-expanded={open}
-            aria-controls="eidolon-flower-list"
-            onPointerEnter={openOnHover}
-            onPointerLeave={closeAfterHover}
-            onClick={toggleOpen}
-          />
-        </div>
-      </article>
-      <p className="eidolon-card-description">{project.description}</p>
+        <p className="eidolon-project-description">{project.description}</p>
+      </div>
     </div>
   );
 }
@@ -659,6 +358,30 @@ export default function Home() {
         gsap.utils
           .toArray<HTMLElement>(".section-reveal", page)
           .forEach((section) => {
+            if (section.classList.contains("skills-section")) {
+              const tiles = gsap.utils.toArray<HTMLElement>(
+                ".skill-tile",
+                section,
+              );
+              gsap.fromTo(
+                tiles,
+                { opacity: 0, y: 18 },
+                {
+                  opacity: 1,
+                  y: 0,
+                  duration: 0.7,
+                  stagger: 0.05,
+                  ease: "power2.out",
+                  scrollTrigger: {
+                    trigger: section,
+                    start: "top 82%",
+                    once: true,
+                  },
+                },
+              );
+              return;
+            }
+
             gsap.fromTo(
               section,
               { opacity: 0, y: 18 },
@@ -870,9 +593,48 @@ export default function Home() {
           <h2 id="projects-title">Projects</h2>
         </div>
         <div className="section-content">
-          {projects.map((project, index) => (
-            <EidolonCard key={project.name} project={project} index={index} />
+          {projects.map((project) => (
+            <EidolonCard key={project.name} project={project} />
           ))}
+        </div>
+      </section>
+
+      <section
+        className="editorial-section skills-section section-reveal"
+        id="skills"
+        aria-labelledby="skills-title"
+      >
+        <div className="section-heading">
+          <h2 id="skills-title">Skills</h2>
+        </div>
+        <div className="section-content skills-content">
+          <ul className="skills-grid">
+            {skills.map((skill) => (
+              <li className="skill-tile" key={skill.name}>
+                {skill.learning && (
+                  <span className="skill-learning">learning</span>
+                )}
+                {skill.icon === "network" ? (
+                  <Network
+                    className="skill-icon"
+                    size={36}
+                    aria-hidden="true"
+                    focusable="false"
+                  />
+                ) : (
+                  <svg
+                    className="skill-icon"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d={skill.icon.path} fill="currentColor" />
+                  </svg>
+                )}
+                <span className="skill-name">{skill.name}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 

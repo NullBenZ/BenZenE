@@ -5,18 +5,20 @@ import { useEffect, useRef, useState } from "react";
 
 const BURST_DESKTOP = 9;
 const BURST_PHONE = 6;
+const MAX_ALIVE_DESKTOP = 160;
+const MAX_ALIVE_PHONE = 80;
 const MAX_PILE_DESKTOP = 44;
 const MAX_PILE_PHONE = 32;
 const MAX_STORED_PETALS = 500;
 const PILE_COLUMN_WIDTH = 6;
 const PILE_BASE_INSET = 0;
-const PILE_CANVAS_EXTRA = 8;
 const PAGE_END_SNAP_DISTANCE = 72;
 const SHOW_PETAL_COUNTER = false;
-const PETAL_SPRITE_WIDTH = 100;
-const PETAL_SPRITE_HEIGHT = 70;
+const PETAL_SPRITE_WIDTH = 72;
+const PETAL_SPRITE_HEIGHT = 62;
+const PETAL_SPRITE_SCALE = 0.72;
 const PALETTE_STEP_SECONDS = 30;
-const MAX_PETAL_SPRITES = 120;
+const MAX_PETAL_SPRITES = 12 * 9;
 const PETAL_PALETTE = [
   "#7A1730",
   "#8E2419",
@@ -25,6 +27,16 @@ const PETAL_PALETTE = [
   "#C77088",
   "#D9A08A",
 ];
+const PETAL_COLOR_STEPS = Array.from({ length: 12 }, (_, step) => {
+  const position = (step / 11) * (PETAL_PALETTE.length - 1);
+  const lower = Math.floor(position);
+  const upper = Math.min(PETAL_PALETTE.length - 1, lower + 1);
+  return interpolateColor(
+    PETAL_PALETTE[lower],
+    PETAL_PALETTE[upper],
+    position - lower,
+  );
+});
 type PetalShape =
   | "broad"
   | "narrow"
@@ -45,16 +57,17 @@ const SHAPE_CONFIG: Record<
     folded?: boolean;
   }
 > = {
-  broad: { bend: 0, widthRatio: 0.7, tip: "round" },
-  narrow: { bend: 0, widthRatio: 0.46, tip: "round" },
-  "curve-down": { bend: 0.3, widthRatio: 0.7, tip: "round" },
-  "curve-up": { bend: -0.3, widthRatio: 0.7, tip: "round" },
-  "crescent-down": { bend: 0.5, widthRatio: 0.5, tip: "round" },
-  "crescent-up": { bend: -0.5, widthRatio: 0.5, tip: "round" },
+  broad: { bend: 0, widthRatio: 0.85, tip: "round" },
+  narrow: { bend: 0, widthRatio: 0.38, tip: "round" },
+  "curve-down": { bend: 0.35, widthRatio: 0.7, tip: "round" },
+  "curve-up": { bend: -0.35, widthRatio: 0.7, tip: "round" },
+  "crescent-down": { bend: 0.6, widthRatio: 0.5, tip: "round" },
+  "crescent-up": { bend: -0.6, widthRatio: 0.5, tip: "round" },
   notched: { bend: 0, widthRatio: 0.7, tip: "notched" },
   pointed: { bend: 0, widthRatio: 0.62, tip: "pointed" },
   folded: { bend: 0, widthRatio: 0.7, tip: "round", folded: true },
 };
+const PETAL_SHAPES = Object.keys(SHAPE_CONFIG) as PetalShape[];
 const FRAME_DURATION = 1000 / 60;
 const DRAG_PER_FRAME = 0.96;
 const GRAVITY_PER_FRAME = 0.16;
@@ -76,8 +89,9 @@ type FallingPetal = {
   flutterFrequency: number;
   length: number;
   shape: PetalShape;
-  tipColor: string;
+  colorStep: number;
   flipX: boolean;
+  previousBounds?: { x: number; y: number; width: number; height: number };
 };
 
 type StoredPetal = {
@@ -85,7 +99,7 @@ type StoredPetal = {
   y: number;
   rotation: number;
   shape: PetalShape;
-  tipColor: string;
+  colorStep: number;
   flipX: boolean;
   size: number;
 };
@@ -93,8 +107,6 @@ type StoredPetal = {
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
-
-const spriteCache = new Map<string, HTMLCanvasElement>();
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -163,26 +175,12 @@ function interpolateColor(from: string, to: string, amount: number) {
   return `#${channel(a.r, b.r)}${channel(a.g, b.g)}${channel(a.b, b.b)}`;
 }
 
-function currentPaletteColor(elapsedSeconds: number) {
-  const lastIndex = PETAL_PALETTE.length - 1;
-  const cycleLength = lastIndex * 2;
-  const cycle = (elapsedSeconds / PALETTE_STEP_SECONDS) % cycleLength;
-  const position = cycle <= lastIndex ? cycle : cycleLength - cycle;
-  const lower = Math.floor(position);
-  const upper = Math.min(lastIndex, lower + 1);
-  return interpolateColor(
-    PETAL_PALETTE[lower],
-    PETAL_PALETTE[upper],
-    position - lower,
-  );
-}
-
-function jitterLightness(color: string) {
-  const { h, s, l } = rgbToHsl(hexToRgb(color));
-  const quantizedLightness = Math.round(
-    clamp(l + randomBetween(-0.06, 0.06), 0.08, 0.82) * 100,
-  );
-  return hslToHex(h, s, quantizedLightness / 100);
+function currentPaletteStep(elapsedSeconds: number) {
+  const cycleLength = (PETAL_COLOR_STEPS.length - 1) * 2;
+  const phase = Math.floor(elapsedSeconds / PALETTE_STEP_SECONDS) % cycleLength;
+  return phase <= PETAL_COLOR_STEPS.length - 1
+    ? phase
+    : cycleLength - phase;
 }
 
 function chooseShape(): PetalShape {
@@ -202,16 +200,16 @@ function chooseShape(): PetalShape {
   return family[Math.floor(Math.random() * family.length)];
 }
 
-function createPetalSprite(shape: PetalShape, tipColor: string, dpr: number) {
+function createPetalSprite(shape: PetalShape, colorStep: number, dpr: number) {
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(PETAL_SPRITE_WIDTH * dpr);
   canvas.height = Math.ceil(PETAL_SPRITE_HEIGHT * dpr);
   const context = canvas.getContext("2d");
   if (!context) return canvas;
-  context.scale(dpr, dpr);
+  context.scale(dpr * PETAL_SPRITE_SCALE, dpr * PETAL_SPRITE_SCALE);
 
   const config = SHAPE_CONFIG[shape];
-  const halfWidth = 28 * (config.widthRatio / 0.7);
+  const halfWidth = 48 * config.widthRatio;
   const tipY = 35 + config.bend * 24;
   const shapePath = new Path2D();
   shapePath.moveTo(4, 35);
@@ -257,17 +255,16 @@ function createPetalSprite(shape: PetalShape, tipColor: string, dpr: number) {
   );
   shapePath.closePath();
 
+  const tipColor = PETAL_COLOR_STEPS[colorStep];
   const { h, s, l } = rgbToHsl(hexToRgb(tipColor));
   const baseColor = hslToHex(h, s, l * 0.65);
   const veinColor = hslToHex(h, Math.min(1, s * 0.35), Math.min(0.9, l + 0.34));
   const edgeColor = hslToHex(h, Math.min(1, s * 0.25), Math.min(0.94, l + 0.4));
+  context.translate(0, (PETAL_SPRITE_HEIGHT / PETAL_SPRITE_SCALE - 70) / 2);
   const gradient = context.createLinearGradient(4, 35, 98, tipY);
   gradient.addColorStop(0, baseColor);
   gradient.addColorStop(1, tipColor);
   context.save();
-  context.shadowColor = "rgb(20 0 8 / 55%)";
-  context.shadowBlur = 3;
-  context.shadowOffsetY = 1;
   context.fillStyle = gradient;
   context.fill(shapePath);
   context.restore();
@@ -314,23 +311,6 @@ function createPetalSprite(shape: PetalShape, tipColor: string, dpr: number) {
   return canvas;
 }
 
-function getPetalSprite(shape: PetalShape, tipColor: string, dpr: number) {
-  const key = `${shape}:${tipColor}:${dpr}`;
-  const cached = spriteCache.get(key);
-  if (cached) {
-    spriteCache.delete(key);
-    spriteCache.set(key, cached);
-    return cached;
-  }
-  const sprite = createPetalSprite(shape, tipColor, dpr);
-  spriteCache.set(key, sprite);
-  if (spriteCache.size > MAX_PETAL_SPRITES) {
-    const oldest = spriteCache.keys().next().value;
-    if (oldest) spriteCache.delete(oldest);
-  }
-  return sprite;
-}
-
 function drawPetal(
   context: CanvasRenderingContext2D,
   x: number,
@@ -338,25 +318,40 @@ function drawPetal(
   length: number,
   rotation: number,
   shape: PetalShape,
-  tipColor: string,
+  colorStep: number,
+  sprites: Map<string, HTMLCanvasElement>,
   flipX: boolean,
   dpr: number,
   verticalScale = 1,
   edgeDarkening = 0,
+  opacity = 1,
 ) {
-  context.save();
-  context.translate(x, y);
-  context.rotate(rotation);
-  if (flipX) context.scale(-1, 1);
-  context.filter = `brightness(${1 - edgeDarkening * 0.2})`;
-  context.drawImage(
-    getPetalSprite(shape, tipColor, dpr),
-    -length / 2,
-    (-length * 0.7 * verticalScale) / 2,
-    length,
-    length * 0.7 * verticalScale,
+  const sprite = sprites.get(`${shape}:${colorStep}`);
+  if (!sprite) return;
+  const cosine = Math.cos(rotation) * (flipX ? -1 : 1);
+  const sine = Math.sin(rotation) * (flipX ? -1 : 1);
+  context.globalAlpha = opacity * (1 - edgeDarkening * 0.2);
+  context.setTransform(
+    dpr * cosine * (length / PETAL_SPRITE_WIDTH),
+    dpr * sine * (length / PETAL_SPRITE_WIDTH),
+    -dpr * sine * (length / PETAL_SPRITE_WIDTH),
+    dpr * cosine * (length / PETAL_SPRITE_WIDTH) * verticalScale,
+    dpr * x,
+    dpr * y,
   );
-  context.restore();
+  context.drawImage(
+    sprite,
+    0,
+    0,
+    sprite.width,
+    sprite.height,
+    -PETAL_SPRITE_WIDTH / 2,
+    -PETAL_SPRITE_HEIGHT / 2,
+    PETAL_SPRITE_WIDTH,
+    PETAL_SPRITE_HEIGHT,
+  );
+  context.globalAlpha = 1;
+  context.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 export default function PetalClicks() {
@@ -366,6 +361,7 @@ export default function PetalClicks() {
   const countTextRef = useRef<HTMLSpanElement>(null);
   const petalWordRef = useRef<HTMLSpanElement>(null);
   const displayedCountRef = useRef(0);
+  const spawnedCountRef = useRef(0);
   const counterVisibleRef = useRef(false);
   const noteTweenRef = useRef<gsap.core.Tween | null>(null);
   const countTweenRef = useRef<gsap.core.Tween | null>(null);
@@ -392,31 +388,42 @@ export default function PetalClicks() {
 
     const falling: FallingPetal[] = [];
     const landed: StoredPetal[] = [];
+    const pileDrawQueue: StoredPetal[] = [];
+    const sprites = new Map<string, HTMLCanvasElement>();
+    const pendingBursts: Array<{ x: number; y: number }> = [];
     let pileHeights: number[] = [];
     let width = 0;
     let height = 0;
     const pageRoot = pileCanvas.closest<HTMLElement>(".home-screen");
     if (!pageRoot) return;
     let pageBottom = 0;
+    let pageRootBottom = 0;
     let maxPileHeight = MAX_PILE_DESKTOP;
-    let pileCanvasHeight = maxPileHeight + PILE_CANVAS_EXTRA;
+    let pileCanvasHeight = maxPileHeight;
     let dpr = 1;
     let frame = 0;
     let lastFrame = 0;
     let lastBurstAt = Number.NEGATIVE_INFINITY;
     let tabVisible = !document.hidden;
     let disposed = false;
+    let spritesReady = false;
+    let pendingSpriteRebuild = false;
+    let idleHandle: number | ReturnType<typeof setTimeout> | null = null;
+    let usingIdleCallback = false;
+    let reducedQuality = false;
+    let smoothedFrameMs = 0;
+    let slowFrameDuration = 0;
+    let recoveryDuration = 0;
+    let previousAirBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
 
     const positionPileAtDocumentBottom = () => {
-      const rootBottom =
-        pageRoot.getBoundingClientRect().bottom + window.scrollY;
       const viewportBottom = window.scrollY + window.innerHeight;
       const snapToViewport =
-        rootBottom - viewportBottom <= PAGE_END_SNAP_DISTANCE;
+        pageRootBottom - viewportBottom <= PAGE_END_SNAP_DISTANCE;
       pageRoot.dataset.atPageEnd = String(snapToViewport);
       pageBottom = snapToViewport
-        ? Math.min(rootBottom, viewportBottom)
-        : rootBottom;
+        ? Math.min(pageRootBottom, viewportBottom)
+        : pageRootBottom;
     };
 
     const drawStoredPile = () => {
@@ -431,10 +438,13 @@ export default function PetalClicks() {
           petal.size,
           petal.rotation,
           petal.shape,
-          petal.tipColor,
+          petal.colorStep,
+          sprites,
           petal.flipX,
           dpr,
           0.55,
+          0,
+          0.85,
         );
       });
     };
@@ -466,10 +476,26 @@ export default function PetalClicks() {
       width = window.innerWidth;
       height = window.innerHeight;
       maxPileHeight = width < 640 ? MAX_PILE_PHONE : MAX_PILE_DESKTOP;
-      pileCanvasHeight = maxPileHeight + PILE_CANVAS_EXTRA;
-      const nextDpr = Math.max(1, window.devicePixelRatio || 1);
-      if (nextDpr !== dpr) spriteCache.clear();
-      dpr = nextDpr;
+      pileCanvasHeight = maxPileHeight;
+      const nextDpr = Math.max(
+        1,
+        Math.min(width > 1600 ? 1 : 2, window.devicePixelRatio || 1),
+      );
+      if (nextDpr !== dpr) {
+        dpr = nextDpr;
+        if (falling.length) {
+          pendingSpriteRebuild = true;
+        } else {
+          if (idleHandle !== null) {
+            if (usingIdleCallback) window.cancelIdleCallback(idleHandle as number);
+            else globalThis.clearTimeout(idleHandle as ReturnType<typeof setTimeout>);
+            idleHandle = null;
+          }
+          sprites.clear();
+          spritesReady = false;
+        }
+      }
+      pageRootBottom = pageRoot.getBoundingClientRect().bottom + window.scrollY;
       positionPileAtDocumentBottom();
 
       airCanvas.width = Math.round(width * dpr);
@@ -477,6 +503,8 @@ export default function PetalClicks() {
       airCanvas.style.width = `${width}px`;
       airCanvas.style.height = `${height}px`;
       airContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+      previousAirBounds = [];
+      falling.forEach((petal) => { petal.previousBounds = undefined; });
 
       pileCanvas.width = Math.round(width * dpr);
       pileCanvas.height = Math.round(pileCanvasHeight * dpr);
@@ -489,6 +517,8 @@ export default function PetalClicks() {
       });
       rebuildHeightMap();
       drawStoredPile();
+      pileDrawQueue.length = 0;
+      if (!spritesReady && !falling.length) scheduleSpriteChunk();
     };
 
     const storeLanding = (
@@ -507,13 +537,14 @@ export default function PetalClicks() {
         y: landY,
         rotation: randomBetween(-25, 25) * (Math.PI / 180),
         shape: source.shape,
-        tipColor: source.tipColor,
+        colorStep: source.colorStep,
         flipX: source.flipX,
         size: length,
       };
 
       landed.push(stored);
       if (landed.length > MAX_STORED_PETALS) landed.shift();
+      pileDrawQueue.push(stored);
 
       if (currentHeight < maxPileHeight) {
         const neighbors = [
@@ -529,19 +560,62 @@ export default function PetalClicks() {
           );
         });
       }
-      drawStoredPile();
     };
 
     const scheduleFrame = () => {
-      if (frame || !tabVisible || !falling.length || disposed) return;
+      if (
+        frame ||
+        !tabVisible ||
+        (!falling.length && !pileDrawQueue.length) ||
+        disposed
+      ) return;
       lastFrame = 0;
       frame = window.requestAnimationFrame(tick);
     };
 
+    const scheduleSpriteChunk = () => {
+      if (disposed || spritesReady || idleHandle !== null) return;
+      if ("requestIdleCallback" in window) {
+        usingIdleCallback = true;
+        idleHandle = window.requestIdleCallback((deadline) => {
+          idleHandle = null;
+          buildSpriteChunk(deadline);
+        }, { timeout: 500 });
+      } else {
+        usingIdleCallback = false;
+        idleHandle = globalThis.setTimeout(() => {
+          idleHandle = null;
+          buildSpriteChunk({ timeRemaining: () => 8, didTimeout: true } as IdleDeadline);
+        }, 16);
+      }
+    };
+
+    const buildSpriteChunk = (deadline?: IdleDeadline) => {
+      if (disposed || spritesReady) return;
+      let built = 0;
+      while (built < 12 && sprites.size < MAX_PETAL_SPRITES &&
+        (!deadline || deadline.timeRemaining() > 2 || deadline.didTimeout)) {
+        const index = sprites.size;
+        const shape = PETAL_SHAPES[Math.floor(index / PETAL_COLOR_STEPS.length)];
+        const colorStep = index % PETAL_COLOR_STEPS.length;
+        sprites.set(`${shape}:${colorStep}`, createPetalSprite(shape, colorStep, dpr));
+        built += 1;
+      }
+      if (sprites.size >= MAX_PETAL_SPRITES) {
+        spritesReady = true;
+        if (landed.length) drawStoredPile();
+        pendingBursts.splice(0).forEach(({ x, y }) => spawnBurst(x, y));
+      } else scheduleSpriteChunk();
+    };
+
     const spawnBurst = (x: number, y: number) => {
-      const amount = window.innerWidth < 640 ? BURST_PHONE : BURST_DESKTOP;
-      const paletteColor = currentPaletteColor(performance.now() / 1000);
-      for (let index = 0; index < amount; index += 1) {
+      const baseAmount = window.innerWidth < 640 ? BURST_PHONE : BURST_DESKTOP;
+      const amount = reducedQuality ? Math.max(1, Math.floor(baseAmount * 0.6)) : baseAmount;
+      const baseLimit = window.innerWidth < 640 ? MAX_ALIVE_PHONE : MAX_ALIVE_DESKTOP;
+      const aliveLimit = reducedQuality ? Math.floor(baseLimit * 0.6) : baseLimit;
+      const spawnCount = Math.min(amount, Math.max(0, aliveLimit - falling.length));
+      const clockStep = currentPaletteStep(performance.now() / 1000);
+      for (let index = 0; index < spawnCount; index += 1) {
         const direction = randomBetween(0, Math.PI * 2);
         const speed = randomBetween(2, 5);
         falling.push({
@@ -556,31 +630,25 @@ export default function PetalClicks() {
           rotation: randomBetween(-Math.PI, Math.PI),
           spin: randomBetween(-0.025, 0.025),
           flutterFrequency: randomBetween(5, 9),
-          length:
-            (window.innerWidth < 640
-              ? randomBetween(14, 22)
-              : randomBetween(18, 28)) * randomBetween(0.85, 1.25),
+          length: window.innerWidth < 640
+            ? randomBetween(18, 28)
+            : randomBetween(24, 36),
           shape: chooseShape(),
-          tipColor: jitterLightness(paletteColor),
+          colorStep: clamp(clockStep + Math.floor(randomBetween(-2, 3)), 0, 11),
           flipX: Math.random() < 0.5,
         });
       }
-      setSpawnedCount((count) => count + amount);
+      spawnedCountRef.current += spawnCount;
+      if (SHOW_PETAL_COUNTER) setSpawnedCount(spawnedCountRef.current);
       scheduleFrame();
     };
 
     const onDocumentClick = (event: MouseEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        target.closest(".eidolon-flower-orb, .eidolon-flower-petal")
-      ) {
-        return;
-      }
       const now = performance.now();
       if (now - lastBurstAt < 150) return;
       lastBurstAt = now;
-      spawnBurst(event.clientX, event.clientY);
+      if (spritesReady) spawnBurst(event.clientX, event.clientY);
+      else pendingBursts.push({ x: event.clientX, y: event.clientY });
     };
 
     const tick = (now: number) => {
@@ -590,8 +658,25 @@ export default function PetalClicks() {
       const frameFactor = delta / FRAME_DURATION;
       const seconds = delta / 1000;
       lastFrame = now;
+      smoothedFrameMs = smoothedFrameMs ? smoothedFrameMs * 0.9 + delta * 0.1 : delta;
+      if (smoothedFrameMs > 22) {
+        slowFrameDuration += delta;
+        recoveryDuration = 0;
+        if (slowFrameDuration >= 1000 && !reducedQuality) {
+          reducedQuality = true;
+          const aliveLimit = Math.floor((width < 640 ? MAX_ALIVE_PHONE : MAX_ALIVE_DESKTOP) * 0.6);
+          falling.splice(aliveLimit);
+        }
+      } else {
+        slowFrameDuration = 0;
+        recoveryDuration += delta;
+        if (recoveryDuration >= 1000) reducedQuality = false;
+      }
       airContext.setTransform(dpr, 0, 0, dpr, 0, 0);
-      airContext.clearRect(0, 0, width, height);
+      previousAirBounds.forEach(({ x, y, width: boundsWidth, height: boundsHeight }) => {
+        airContext.clearRect(x, y, boundsWidth, boundsHeight);
+      });
+      previousAirBounds = [];
 
       for (let index = falling.length - 1; index >= 0; index -= 1) {
         const petal = falling[index];
@@ -625,7 +710,7 @@ export default function PetalClicks() {
           petal.swayAmplitude;
         const drawX = petal.x + sway;
         const flip = Math.max(
-          0.4,
+          0.55,
           Math.abs(Math.cos(petal.age * petal.flutterFrequency + petal.phase)),
         );
         const halfHeight = petal.length * 0.35 * flip;
@@ -643,18 +728,53 @@ export default function PetalClicks() {
           petal.length,
           petal.rotation,
           petal.shape,
-          petal.tipColor,
+          petal.colorStep,
+          sprites,
           petal.flipX,
           dpr,
           flip,
           1 - flip,
         );
+        const extent = petal.length * 0.8 + 2;
+        const bounds = {
+          x: Math.max(0, drawX - extent),
+          y: Math.max(0, petal.y - window.scrollY - extent),
+          width: Math.min(width, extent * 2),
+          height: Math.min(height, extent * 2),
+        };
+        petal.previousBounds = bounds;
+        previousAirBounds.push(bounds);
       }
 
-      if (falling.length) scheduleFrame();
+      for (let count = 0; count < 6 && pileDrawQueue.length; count += 1) {
+        const petal = pileDrawQueue.shift();
+        if (!petal) break;
+        drawPetal(
+          pileContext,
+          petal.x,
+          petal.y,
+          petal.size,
+          petal.rotation,
+          petal.shape,
+          petal.colorStep,
+          sprites,
+          petal.flipX,
+          dpr,
+          0.55,
+          0,
+          0.85,
+        );
+      }
+
+      if (falling.length || pileDrawQueue.length) scheduleFrame();
       else {
         lastFrame = 0;
-        airContext.clearRect(0, 0, width, height);
+        if (pendingSpriteRebuild) {
+          pendingSpriteRebuild = false;
+          sprites.clear();
+          spritesReady = false;
+          scheduleSpriteChunk();
+        }
       }
     };
 
@@ -674,26 +794,47 @@ export default function PetalClicks() {
       scheduleFrame();
     };
 
-    const pageSizeObserver = new ResizeObserver(positionPileAtDocumentBottom);
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    const onResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        resizeTimer = undefined;
+        resize();
+      }, 150);
+    };
+
+    const updatePageGeometry = () => {
+      pageRootBottom = pageRoot.getBoundingClientRect().bottom + window.scrollY;
+      positionPileAtDocumentBottom();
+    };
+    const pageSizeObserver = new ResizeObserver(updatePageGeometry);
     pageSizeObserver.observe(document.body);
     pageSizeObserver.observe(pageRoot);
 
     resize();
     document.addEventListener("click", onDocumentClick, { passive: true });
     document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("resize", resize, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {
       disposed = true;
       if (frame) window.cancelAnimationFrame(frame);
+      if (idleHandle !== null) {
+        if (usingIdleCallback) window.cancelIdleCallback(idleHandle as number);
+        else globalThis.clearTimeout(idleHandle as ReturnType<typeof setTimeout>);
+      }
+      if (resizeTimer) clearTimeout(resizeTimer);
       document.removeEventListener("click", onDocumentClick);
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll);
       pageSizeObserver.disconnect();
       falling.length = 0;
       landed.length = 0;
+      pileDrawQueue.length = 0;
+      sprites.clear();
+      pendingBursts.length = 0;
     };
   }, [reducedMotion]);
 
