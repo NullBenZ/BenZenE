@@ -8,7 +8,6 @@ import { Network } from "lucide-react";
 import {
   siC,
   siCplusplus,
-  siCss,
   siGit,
   siHtml5,
   siJavascript,
@@ -51,7 +50,7 @@ const projects: Project[] = [
 
 type Skill = {
   name: string;
-  icon: SimpleIcon | "network";
+  icon: SimpleIcon | "network" | { fallback: string };
   learning?: boolean;
 };
 
@@ -64,7 +63,7 @@ const skills: Skill[] = [
   { name: "C++", icon: siCplusplus },
   { name: "Linux", icon: siLinux },
   { name: "HTML", icon: siHtml5 },
-  { name: "CSS", icon: siCss },
+  { name: "CSS", icon: { fallback: "CSS" } },
   { name: "Networking", icon: "network" },
 ];
 
@@ -617,18 +616,31 @@ export default function Home() {
                 {skill.icon === "network" ? (
                   <Network
                     className="skill-icon"
-                    size={36}
+                    width={36}
+                    height={36}
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
                     aria-hidden="true"
                     focusable="false"
                   />
+                ) : "fallback" in skill.icon ? (
+                  <span
+                    className="skill-icon skill-icon-fallback"
+                    aria-hidden="true"
+                  >
+                    {skill.icon.fallback}
+                  </span>
                 ) : (
                   <svg
                     className="skill-icon"
+                    width={36}
+                    height={36}
                     viewBox="0 0 24 24"
+                    fill="currentColor"
                     aria-hidden="true"
                     focusable="false"
                   >
-                    <path d={skill.icon.path} fill="currentColor" />
+                    <path d={skill.icon.path} />
                   </svg>
                 )}
                 <span className="skill-name">{skill.name}</span>

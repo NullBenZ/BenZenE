@@ -46,6 +46,7 @@ Use a modular type scale from CSS variables (base 17px, ratio 1.25 in Minimal). 
 - The Skills section follows Projects and precedes Contact, with a responsive grid of skill tiles.
 - Skills, in order: Git, JavaScript, Python, Rust, C, C++, Linux, HTML, CSS, Networking.
 - Rust is labeled “learning”.
+- Root cause of oversized icons: the inline SVGs had no width/height attributes and depended on `.skill-icon` CSS for sizing. The already-running dev server served stale CSS without that rule, so SVGs expanded to the grid width. There was no global SVG width rule or dynamically generated Tailwind class.
 
 ### Artwork and click-petal effect
 - Dahlia artwork appears in the upper-right corner and as three flowers along the lower-left edge.

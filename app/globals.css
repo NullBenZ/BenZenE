@@ -446,6 +446,8 @@ h4 {
   position: relative;
   display: flex;
   aspect-ratio: 4 / 3.4;
+  min-width: 0;
+  min-height: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -455,6 +457,7 @@ h4 {
   border-radius: 2px;
   background: transparent;
   color: var(--espresso);
+  overflow: hidden;
   transition:
     color 200ms ease,
     border-color 200ms ease,
@@ -467,9 +470,19 @@ h4 {
 
 .skill-icon {
   display: block;
-  flex: 0 0 36px;
+  flex: none;
   width: 36px;
   height: 36px;
+  max-width: 100%;
+}
+
+.skill-icon-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .skill-name {
@@ -701,6 +714,11 @@ h4 {
 
   .skill-tile {
     padding: 16px;
+  }
+
+  .skill-icon {
+    width: 32px;
+    height: 32px;
   }
 }
 
