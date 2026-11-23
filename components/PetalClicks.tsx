@@ -19,24 +19,8 @@ const PETAL_SPRITE_HEIGHT = 62;
 const PETAL_SPRITE_SCALE = 0.72;
 const PALETTE_STEP_SECONDS = 30;
 const MAX_PETAL_SPRITES = 12 * 9;
-const PETAL_PALETTE = [
-  "#7A1730",
-  "#8E2419",
-  "#A63A4A",
-  "#B34A66",
-  "#C77088",
-  "#D9A08A",
-];
-const PETAL_COLOR_STEPS = Array.from({ length: 12 }, (_, step) => {
-  const position = (step / 11) * (PETAL_PALETTE.length - 1);
-  const lower = Math.floor(position);
-  const upper = Math.min(PETAL_PALETTE.length - 1, lower + 1);
-  return interpolateColor(
-    PETAL_PALETTE[lower],
-    PETAL_PALETTE[upper],
-    position - lower,
-  );
-});
+let PETAL_COLOR_STEPS: string[] = [];
+let PETAL_SHADES = { light: "", mid: "", dark: "", fold: "" };
 type PetalShape =
   | "broad"
   | "narrow"
@@ -272,9 +256,9 @@ function createPetalSprite(shape: PetalShape, colorStep: number, dpr: number) {
   context.save();
   context.clip(shapePath);
   const innerShade = context.createLinearGradient(0, 0, 0, PETAL_SPRITE_HEIGHT);
-  innerShade.addColorStop(0, "rgb(255 235 239 / 13%)");
-  innerShade.addColorStop(0.52, "rgb(35 0 12 / 0%)");
-  innerShade.addColorStop(1, "rgb(24 0 8 / 28%)");
+  innerShade.addColorStop(0, PETAL_SHADES.light);
+  innerShade.addColorStop(0.52, PETAL_SHADES.mid);
+  innerShade.addColorStop(1, PETAL_SHADES.dark);
   context.fillStyle = innerShade;
   context.fillRect(0, 0, PETAL_SPRITE_WIDTH, PETAL_SPRITE_HEIGHT);
 
@@ -293,7 +277,7 @@ function createPetalSprite(shape: PetalShape, colorStep: number, dpr: number) {
   if (config.folded) {
     context.save();
     context.globalAlpha = 0.14;
-    context.fillStyle = "#180008";
+    context.fillStyle = PETAL_SHADES.fold;
     context.fillRect(0, 35, PETAL_SPRITE_WIDTH, PETAL_SPRITE_HEIGHT / 2);
     context.restore();
     context.beginPath();
@@ -411,10 +395,28 @@ export default function PetalClicks() {
     let idleHandle: number | ReturnType<typeof setTimeout> | null = null;
     let usingIdleCallback = false;
     let reducedQuality = false;
+    let darkTheme = document.documentElement.dataset.theme === "dark";
     let smoothedFrameMs = 0;
     let slowFrameDuration = 0;
     let recoveryDuration = 0;
     let previousAirBounds: Array<{ x: number; y: number; width: number; height: number }> = [];
+
+    const readThemeColors = () => {
+      const styles = getComputedStyle(document.documentElement);
+      const palette = styles.getPropertyValue("--petal-palette").split(",").map((color) => color.trim()).filter(Boolean);
+      PETAL_COLOR_STEPS = Array.from({ length: 12 }, (_, step) => {
+        const position = (step / 11) * (palette.length - 1);
+        const lower = Math.floor(position);
+        const upper = Math.min(palette.length - 1, lower + 1);
+        return interpolateColor(palette[lower], palette[upper], position - lower);
+      });
+      PETAL_SHADES = {
+        light: styles.getPropertyValue("--petal-shade-light").trim(),
+        mid: styles.getPropertyValue("--petal-shade-mid").trim(),
+        dark: styles.getPropertyValue("--petal-shade-dark").trim(),
+        fold: styles.getPropertyValue("--petal-fold").trim(),
+      };
+    };
 
     const positionPileAtDocumentBottom = () => {
       const viewportBottom = window.scrollY + window.innerHeight;
@@ -622,7 +624,7 @@ export default function PetalClicks() {
           x,
           y: y + window.scrollY,
           vx: Math.cos(direction) * speed,
-          vy: Math.sin(direction) * speed - randomBetween(0.4, 1.1),
+          vy: darkTheme ? -randomBetween(1.2, 3.2) : Math.sin(direction) * speed - randomBetween(0.4, 1.1),
           age: 0,
           swayAmplitude: randomBetween(15, 25),
           swayFrequency: randomBetween(0.8, 1.8),
@@ -644,6 +646,7 @@ export default function PetalClicks() {
     };
 
     const onDocumentClick = (event: MouseEvent) => {
+      if (document.documentElement.dataset.themeTransitioning === "true") return;
       const now = performance.now();
       if (now - lastBurstAt < 150) return;
       lastBurstAt = now;
@@ -682,11 +685,9 @@ export default function PetalClicks() {
         const petal = falling[index];
         petal.age += seconds;
         petal.vx *= DRAG_PER_FRAME ** frameFactor;
-        petal.vy = Math.min(
-          TERMINAL_FALL_PER_FRAME,
-          petal.vy * DRAG_PER_FRAME ** frameFactor +
-            GRAVITY_PER_FRAME * frameFactor,
-        );
+        petal.vy = darkTheme
+          ? Math.max(-TERMINAL_FALL_PER_FRAME, petal.vy * DRAG_PER_FRAME ** frameFactor - GRAVITY_PER_FRAME * frameFactor)
+          : Math.min(TERMINAL_FALL_PER_FRAME, petal.vy * DRAG_PER_FRAME ** frameFactor + GRAVITY_PER_FRAME * frameFactor);
         petal.x += petal.vx * frameFactor;
         petal.y += petal.vy * frameFactor;
         petal.rotation += petal.spin * frameFactor;
@@ -715,7 +716,12 @@ export default function PetalClicks() {
         );
         const halfHeight = petal.length * 0.35 * flip;
 
-        if (petal.y + halfHeight >= pileTop) {
+        if (darkTheme && petal.age >= 2.5) {
+          falling.splice(index, 1);
+          continue;
+        }
+
+        if (!darkTheme && petal.y + halfHeight >= pileTop) {
           storeLanding(drawX, petal.length, petal, column);
           falling.splice(index, 1);
           continue;
@@ -734,6 +740,7 @@ export default function PetalClicks() {
           dpr,
           flip,
           1 - flip,
+          darkTheme ? Math.max(0, 1 - petal.age / 2.5) : 1,
         );
         const extent = petal.length * 0.8 + 2;
         const bounds = {
@@ -807,6 +814,23 @@ export default function PetalClicks() {
       pageRootBottom = pageRoot.getBoundingClientRect().bottom + window.scrollY;
       positionPileAtDocumentBottom();
     };
+    readThemeColors();
+    const themeObserver = new MutationObserver(() => {
+      const nextDark = document.documentElement.dataset.theme === "dark";
+      if (nextDark === darkTheme) return;
+      darkTheme = nextDark;
+      readThemeColors();
+      falling.length = 0;
+      landed.length = 0;
+      pileDrawQueue.length = 0;
+      pileHeights = [];
+      sprites.clear();
+      spritesReady = false;
+      airContext.clearRect(0, 0, width, height);
+      pileContext.clearRect(0, 0, pileCanvas.width, pileCanvas.height);
+      scheduleSpriteChunk();
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     const pageSizeObserver = new ResizeObserver(updatePageGeometry);
     pageSizeObserver.observe(document.body);
     pageSizeObserver.observe(pageRoot);
@@ -830,6 +854,7 @@ export default function PetalClicks() {
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScroll);
       pageSizeObserver.disconnect();
+      themeObserver.disconnect();
       falling.length = 0;
       landed.length = 0;
       pileDrawQueue.length = 0;

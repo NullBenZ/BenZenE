@@ -16,8 +16,13 @@ import {
   siRust,
   type SimpleIcon,
 } from "simple-icons";
-import { useRef } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import PetalClicks from "../components/PetalClicks";
+import DarkCutscene, {
+  IDLE_PRELOAD_TIMEOUT_MS,
+  preloadDarkCutsceneAssets,
+  shouldPlayDarkCutscene,
+} from "../components/DarkCutscene";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -53,6 +58,189 @@ type Skill = {
   icon: SimpleIcon | "network" | { fallback: string };
   learning?: boolean;
 };
+
+function ThemeControls() {
+  const [dark, setDark] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const [cutsceneActive, setCutsceneActive] = useState(false);
+  const overlayRef = useRef<SVGSVGElement>(null);
+  const inkCircleRef = useRef<SVGCircleElement>(null);
+  const inkFilterRef = useRef<SVGFilterElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const previousOverflowRef = useRef("");
+
+  useEffect(() => {
+    setDark(document.documentElement.dataset.theme === "dark");
+  }, []);
+
+  useEffect(() => {
+    let idleId: number | undefined;
+    let fallbackTimer: number | undefined;
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(preloadDarkCutsceneAssets, {
+        timeout: IDLE_PRELOAD_TIMEOUT_MS,
+      });
+    } else {
+      fallbackTimer = window.setTimeout(
+        preloadDarkCutsceneAssets,
+        IDLE_PRELOAD_TIMEOUT_MS,
+      );
+    }
+    return () => {
+      if (idleId !== undefined) window.cancelIdleCallback(idleId);
+      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+    };
+  }, []);
+
+  const onCutsceneBegin = useCallback(() => {
+    if (overlayRef.current) gsap.set(overlayRef.current, { clearProps: "all" });
+  }, []);
+
+  const onCutsceneComplete = useCallback(() => {
+    const root = document.documentElement;
+    root.style.overflow = previousOverflowRef.current;
+    delete root.dataset.themeTransitioning;
+    setCutsceneActive(false);
+    setTransitioning(false);
+    window.requestAnimationFrame(() => {
+      toggleRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
+
+  const switchTheme = (event: MouseEvent<HTMLButtonElement>) => {
+    if (transitioning) return;
+    const nextDark = !dark;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const root = document.documentElement;
+    const previousOverflow = root.style.overflow;
+    previousOverflowRef.current = previousOverflow;
+    const overlay = overlayRef.current;
+    const inkCircle = inkCircleRef.current;
+    const inkFilter = inkFilterRef.current;
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const x = event.detail === 0 ? rect.left + rect.width / 2 : event.clientX;
+    const y = event.detail === 0 ? rect.top + rect.height / 2 : event.clientY;
+    setTransitioning(true);
+    root.dataset.themeTransitioning = "true";
+    setAnnouncement(nextDark ? "Dark mode on" : "Light mode on");
+
+    const applyThemeAtFullCover = () => {
+      root.dataset.theme = nextDark ? "dark" : "light";
+      setDark(nextDark);
+      root.style.overflow = previousOverflow;
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      ScrollTrigger.refresh();
+      root.style.overflow = "hidden";
+    };
+
+    const fadeInkAndUnlock = () => {
+      if (overlay) {
+        gsap.to(overlay, {
+          opacity: 0,
+          duration: 0.6,
+          onComplete: () => {
+            gsap.set(overlay, { clearProps: "all" });
+            root.style.overflow = previousOverflow;
+            delete root.dataset.themeTransitioning;
+            setTransitioning(false);
+          },
+        });
+      } else {
+        root.style.overflow = previousOverflow;
+        delete root.dataset.themeTransitioning;
+        setTransitioning(false);
+      }
+    };
+
+    const finish = () => {
+      applyThemeAtFullCover();
+      if (nextDark && shouldPlayDarkCutscene()) {
+        setCutsceneActive(true);
+        return;
+      }
+      fadeInkAndUnlock();
+    };
+
+    if (reduced || !overlay || !inkCircle || !inkFilter) {
+      root.classList.add("theme-crossfade");
+      root.dataset.theme = nextDark ? "dark" : "light";
+      setDark(nextDark);
+      window.setTimeout(() => {
+        root.classList.remove("theme-crossfade");
+        delete root.dataset.themeTransitioning;
+        setTransitioning(false);
+        ScrollTrigger.refresh();
+      }, 200);
+      return;
+    }
+
+    const colors = getComputedStyle(root);
+    const bg = colors.getPropertyValue(nextDark ? "--theme-dark-bg" : "--theme-light-bg").trim();
+    overlay.setAttribute("viewBox", `0 0 ${window.innerWidth} ${window.innerHeight}`);
+    inkCircle.setAttribute("cx", String(x));
+    inkCircle.setAttribute("cy", String(y));
+    inkCircle.setAttribute("r", "1");
+    inkCircle.setAttribute("fill", bg);
+    inkFilter.setAttribute("x", "-100");
+    inkFilter.setAttribute("y", "-100");
+    inkFilter.setAttribute("width", String(window.innerWidth + 200));
+    inkFilter.setAttribute("height", String(window.innerHeight + 200));
+    overlay.style.opacity = "1";
+    overlay.style.visibility = "visible";
+    const radius = Math.ceil(Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    )) + 120;
+    root.style.overflow = "hidden";
+    const ink = { radius: 1 };
+    gsap.to(ink, {
+      radius,
+      duration: nextDark ? 1.4 : 1.1,
+      ease: "none",
+      onUpdate: () => inkCircle.setAttribute("r", ink.radius.toFixed(2)),
+      onComplete: finish,
+    });
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="theme-toggle"
+        ref={toggleRef}
+        aria-pressed={dark}
+        aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+        onClick={switchTheme}
+        onMouseEnter={preloadDarkCutsceneAssets}
+        onPointerDown={preloadDarkCutsceneAssets}
+        onFocus={preloadDarkCutsceneAssets}
+        disabled={transitioning}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 3a9 9 0 1 0 9 9h-9z" fill="currentColor" />
+          <path d="M14 2.2v7.1h7.1A9.1 9.1 0 0 0 14 2.2z" fill="currentColor" />
+        </svg>
+      </button>
+      <span className="visually-hidden" aria-live="polite" aria-atomic="true">{announcement}</span>
+      <svg className="ink-bleed-overlay" ref={overlayRef} aria-hidden="true" focusable="false">
+        <defs>
+        <filter id="ink-bleed-filter" ref={inkFilterRef} filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse">
+          <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="3" seed="8" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="90" />
+        </filter>
+        </defs>
+        <circle ref={inkCircleRef} cx="0" cy="0" r="1" fill="currentColor" filter="url(#ink-bleed-filter)" />
+      </svg>
+      <DarkCutscene
+        active={cutsceneActive}
+        onBegin={onCutsceneBegin}
+        onComplete={onCutsceneComplete}
+      />
+    </>
+  );
+}
 
 const skills: Skill[] = [
   { name: "Git", icon: siGit },
@@ -350,7 +538,7 @@ export default function Home() {
           },
         );
         gsap.fromTo(
-          ".hero-art-image",
+          ".hero-art-image-light",
           { opacity: 0 },
           { opacity: 1, duration: 1.2, ease: "sine.out", delay: 0.35 },
         );
@@ -544,14 +732,23 @@ export default function Home() {
           </p>
         </div>
 
-        <figure className="city-art" aria-hidden="true">
+        <figure className="city-art" id="hero-art-slot" aria-hidden="true">
           <Image
             src="/art/shakti-hero.png"
             alt=""
             fill
             priority
             sizes="100vw"
-            className="hero-art-image"
+            className="hero-art-image hero-art-image-light"
+            unoptimized
+          />
+          <Image
+            src="/art/dark/luffy.png"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="hero-art-image hero-art-image-dark"
             unoptimized
           />
         </figure>
@@ -691,6 +888,7 @@ export default function Home() {
         />
       </div>
       <PetalClicks />
+      <ThemeControls />
     </main>
   );
 }
